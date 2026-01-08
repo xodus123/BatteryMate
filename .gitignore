@@ -1,0 +1,82 @@
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 환경 변수
+.env
+.env.local
+.envrc
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node.js (프론트엔드용)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 로그
+*.log
+logs/
+
+# 테스트
+.coverage
+htmlcov/
+.pytest_cache/
+
+# 데이터셋 (용량 큼)
+data/
+test_images/
+
+# 문서 (내부용)
+docs/
+
+# 모델 체크포인트 (용량 큼 - 필요시 Git LFS 사용)
+*.pt
+*.pth
+checkpoints/
+
+# TensorBoard 로그
+runs/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb
+
+# 임시 파일
+tmp/
+temp/
+*.tmp
+
+# API 키
+*.key
+credentials.json

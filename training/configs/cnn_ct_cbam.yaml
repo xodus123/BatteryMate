@@ -1,0 +1,134 @@
+# CT CNN + CBAM Config (5클래스 다중 분류)
+#
+# 개선 사항:
+#   1. ResNet18 + CBAM (Attention 추가)
+#   2. 이미지 크기 증가 (512 → 768) - 기공 디테일 보존
+#   3. Focal Loss gamma 증가 (2.0 → 3.0) - 어려운 샘플 집중
+#
+# 기대 효과:
+#   - 정상 ↔ 기공 구분 성능 향상
+#   - 과적합 감소 (Attention이 중요 영역에 집중)
+
+# ============================================================
+# 클래스 정의
+# ============================================================
+classes:
+  names:
+    - cell_normal
+    - cell_porosity
+    - module_normal
+    - module_porosity
+    - module_resin_overflow
+  num_classes: 5
+  class_weights: [1.0, 3.0, 1.0, 0.9, 25.0]
+
+# ============================================================
+# 모델 설정
+# ============================================================
+model:
+  name: resnet18_cbam
+  pretrained: true
+  num_classes: 5
+  dropout: 0.3
+  use_cbam: true  # CBAM Attention 사용
+
+# ============================================================
+# 데이터 설정
+# ============================================================
+data:
+  train_split: training/data/splits/ct/train.txt
+  val_split: training/data/splits/ct/val.txt
+  test_split: training/data/splits/ct/test.txt
+
+  # 이미지 크기 증가 (기공 디테일 보존)
+  image_size: 768  # 512 → 768
+  batch_size: 16   # 32 → 16 (GPU 메모리)
+  num_workers: 16
+
+  class_balancing:
+    enabled: true
+    method: weighted_sampler
+
+  augmentation:
+    train:
+      - RandomHorizontalFlip:
+          p: 0.5
+      - RandomVerticalFlip:
+          p: 0.5
+      - RandomRotation:
+          degrees: 15
+      - ColorJitter:
+          brightness: 0.2
+          contrast: 0.2
+    val: []
+
+# ============================================================
+# 학습 설정
+# ============================================================
+training:
+  optimizer: AdamW
+  lr: 0.0001
+  weight_decay: 0.01
+  epochs: 50
+  device: cuda
+
+  scheduler:
+    name: CosineAnnealingWarmRestarts
+    T_0: 10
+    T_mult: 2
+    eta_min: 1e-6
+
+  gradient_clip: 1.0
+  amp: true
+
+# ============================================================
+# 손실 함수 및 평가 기준
+# ============================================================
+criteria:
+  loss: CrossEntropyLoss
+  use_class_weights: true
+  label_smoothing: 0.1
+
+  focal_loss:
+    enabled: true
+    gamma: 3.0  # 2.0 → 3.0 (어려운 샘플에 더 집중)
+    alpha: null
+
+  early_stopping:
+    enabled: true
+    monitor: val_f1_macro
+    patience: 10
+    min_delta: 0.001
+    mode: max
+
+# ============================================================
+# 체크포인트 설정
+# ============================================================
+checkpoint:
+  save_dir: models/ct_cnn/checkpoints
+  save_best_by: val_f1_macro
+  save_last: true
+  save_top_k: 3
+
+# ============================================================
+# 로깅 설정
+# ============================================================
+logging:
+  tensorboard:
+    enabled: true
+    log_dir: models/ct_cnn/logs
+    log_confusion_matrix: true
+    log_per_class_metrics: true
+    log_grad_cam: true
+
+  train_log:
+    enabled: true
+    save_path: models/ct_cnn/logs/train_cbam.csv
+
+# ============================================================
+# 실험 메타데이터
+# ============================================================
+experiment:
+  name: ct_cbam_768
+  description: "CT CNN + CBAM (768px, gamma=3.0) - 기공 탐지 개선"
+  seed: 42

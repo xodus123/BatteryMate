@@ -1,0 +1,151 @@
+# RGB AutoEncoder Config - 불량 학습 (Defect Training)
+#
+# 목적: 불량 이미지로 학습 → 정상 이미지 입력 시 높은 재구성 오류
+# 방식: Reverse Anomaly Detection (역 이상 탐지)
+#
+# 데이터 분할:
+#   Train: 35,919개 (불량만 - pollution, mixed)
+#   Val:   11,625개 (정상 + 불량)
+#   Test:  11,719개 (정상 + 불량)
+#
+# 원리:
+#   - 불량 패턴만 학습하여 불량의 "결함 분포" 학습
+#   - 정상 입력 시 재구성 실패 → 높은 MSE → 정상 탐지
+#   - 장점: 불량 데이터가 많을 때 효과적
+
+# ============================================================
+# 클래스 정의
+# ============================================================
+classes:
+  names:
+    - normal      # 정상 (Val/Test)
+    - pollution   # 오염 (학습 대상)
+    - mixed       # 복합 결함 (학습 대상)
+  num_classes: 3
+
+# ============================================================
+# 모델 설정
+# ============================================================
+model:
+  name: ConvAutoEncoder
+
+  encoder:
+    channels: [3, 64, 128, 256, 512]
+    kernel_size: 4
+    stride: 2
+    padding: 1
+
+  decoder:
+    channels: [512, 256, 128, 64, 3]
+    kernel_size: 4
+    stride: 2
+    padding: 1
+    output_padding: 1
+
+  latent_dim: 1024
+  dropout: 0.2
+
+# ============================================================
+# 데이터 설정
+# ============================================================
+data:
+  # Split 파일 경로 (불량 학습용 - backup에서 복원)
+  train_split: training/data/splits/rgb/backup_defect_training/train.txt   # 불량만
+  val_split: training/data/splits/rgb/backup_defect_training/val.txt
+  test_split: training/data/splits/rgb/backup_defect_training/test.txt
+
+  # 이미지 설정
+  image_size: 512
+  batch_size: 32
+  num_workers: 8
+
+  # 데이터 증강 (학습 시에만)
+  augmentation:
+    train:
+      - RandomHorizontalFlip:
+          p: 0.5
+      - RandomRotation:
+          degrees: 10
+      - ColorJitter:
+          brightness: 0.1
+          contrast: 0.1
+    val: []
+
+# ============================================================
+# 학습 설정
+# ============================================================
+training:
+  optimizer: Adam
+  lr: 0.001
+  weight_decay: 0.0001
+  epochs: 100
+  device: cuda
+
+  # 스케줄러
+  scheduler:
+    name: ReduceLROnPlateau
+    monitor: val_loss
+    factor: 0.5
+    patience: 5
+    min_lr: 1e-6
+
+  # Mixed Precision
+  amp: true
+
+# ============================================================
+# 손실 함수 및 평가 기준
+# ============================================================
+criteria:
+  # 재구성 손실
+  reconstruction_loss: MSE
+
+  # Early Stopping
+  early_stopping:
+    enabled: true
+    monitor: val_loss
+    patience: 15
+    min_delta: 0.0001
+    mode: min
+
+# ============================================================
+# Threshold 설정 (이상 탐지용)
+# ============================================================
+threshold:
+  # k-sigma 방식: threshold = mean + k * std
+  method: k_sigma
+  k: 2.5
+
+  # Threshold 자동 계산
+  auto_compute: true
+  save_path: models/rgb_ae/checkpoints/threshold_defect.json
+
+# ============================================================
+# 체크포인트 설정
+# ============================================================
+checkpoint:
+  save_dir: models/rgb_ae/checkpoints/defect_training
+  save_best_by: val_loss
+  save_last: true
+  save_top_k: 3
+
+# ============================================================
+# 로깅 설정
+# ============================================================
+logging:
+  tensorboard:
+    enabled: true
+    log_dir: models/rgb_ae/logs/defect_training
+    log_reconstruction: true
+    log_anomaly_heatmap: true
+
+  train_log:
+    enabled: true
+    save_path: experiments/logs/train_logs/rgb_ae_defect_train.csv
+
+# ============================================================
+# 실험 메타데이터
+# ============================================================
+experiment:
+  name: rgb_ae_defect_training
+  description: "RGB AutoEncoder 불량 학습 - 불량 패턴 학습 후 정상 탐지"
+  seed: 42

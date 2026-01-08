@@ -1,0 +1,66 @@
+# 앙상블 설정 파일
+# CT CNN (내부 결함) + RGB AutoEncoder (외부 결함)
+
+# ============================================================
+# 클래스 정의
+# ============================================================
+classes:
+  # CT CNN: 5클래스 다중분류
+  ct:
+    names: ["cell_normal", "cell_porosity", "module_normal", "module_porosity", "module_resin_overflow"]
+    num_classes: 5
+  # RGB AE: 이상탐지 (정상 vs 불량)
+  rgb:
+    names: ["normal", "defect"]
+    num_classes: 2  # 이상탐지이므로 binary
+
+# ============================================================
+# 앙상블 판정 로직
+# ============================================================
+ensemble:
+  # 최종 판정 결과
+  # - "정상": CT 정상 AND RGB 정상
+  # - "내부불량": CT 불량 (porosity/resin_overflow)
+  # - "외부불량": RGB 불량
+  # - "복합불량": CT 불량 AND RGB 불량
+
+  # CT CNN 판정
+  ct_defect_classes: [1, 3, 4]  # cell_porosity, module_porosity, module_resin_overflow
+  ct_normal_classes: [0, 2]     # cell_normal, module_normal
+
+  # RGB AE 판정
+  rgb_threshold_multiplier: 1.0  # threshold 조정 배수
+
+# ============================================================
+# 모델 체크포인트 경로
+# ============================================================
+models:
+  # CT CNN (5클래스 다중분류)
+  ct_cnn:
+    checkpoint: "models/ct_cnn/checkpoints/resnet18_best.pt"
+    config: "training/configs/cnn_ct_unified.yaml"
+    num_classes: 5
+
+  # RGB AutoEncoder (이상탐지)
+  rgb_ae:
+    checkpoint: "models/rgb_ae/checkpoints/autoencoder_best.pt"
+    threshold_file: "models/rgb_ae/checkpoints/threshold.json"
+    config: "training/configs/autoencoder_rgb.yaml"
+
+# ============================================================
+# Grad-CAM 설정 (CT CNN용)
+# ============================================================
+gradcam:
+  enabled: true
+  target_layer: "layer4"      # ResNet18 마지막 Conv Layer
+  heatmap_alpha: 0.4
+  bbox_threshold: 0.5
+
+# ============================================================
+# 로그 설정
+# ============================================================
+logging:
+  log_dir: "models/ensemble/logs"
+  save_visualizations: true
+
+seed: 42

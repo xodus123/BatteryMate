@@ -1,0 +1,150 @@
+# RGB AutoEncoder Config - 정상 학습 (Normal Training)
+#
+# 목적: 정상 이미지로 학습 → 불량 이미지 입력 시 높은 재구성 오류
+# 방식: Anomaly Detection (이상 탐지) - 전통적 방식
+#
+# 데이터 분할:
+#   Train: 5,610개 (정상만 - label=0)
+#   Val:   26,904개 (정상 + 불량)
+#   Test:  26,749개 (정상 + 불량)
+#
+# 원리:
+#   - 정상 패턴만 학습하여 정상의 "정상 분포" 학습
+#   - 불량 입력 시 재구성 실패 → 높은 MSE → 이상 탐지
+
+# ============================================================
+# 클래스 정의
+# ============================================================
+classes:
+  names:
+    - normal      # 정상 (학습 대상)
+    - pollution   # 오염 (Val/Test)
+    - mixed       # 복합 결함 (Val/Test)
+  num_classes: 3
+
+# ============================================================
+# 모델 설정
+# ============================================================
+model:
+  name: ConvAutoEncoder
+
+  encoder:
+    channels: [3, 64, 128, 256, 512]
+    kernel_size: 4
+    stride: 2
+    padding: 1
+
+  decoder:
+    channels: [512, 256, 128, 64, 3]
+    kernel_size: 4
+    stride: 2
+    padding: 1
+    output_padding: 1
+
+  latent_dim: 1024
+  dropout: 0.2
+
+# ============================================================
+# 데이터 설정
+# ============================================================
+data:
+  # Split 파일 경로 (정상 학습용)
+  train_split: training/data/splits/rgb/train.txt      # 정상만
+  val_split: training/data/splits/rgb/val.txt
+  test_split: training/data/splits/rgb/test.txt
+
+  # 이미지 설정
+  image_size: 512
+  batch_size: 32
+  num_workers: 8
+
+  # 데이터 증강 (학습 시에만)
+  augmentation:
+    train:
+      - RandomHorizontalFlip:
+          p: 0.5
+      - RandomRotation:
+          degrees: 10
+      - ColorJitter:
+          brightness: 0.1
+          contrast: 0.1
+    val: []
+
+# ============================================================
+# 학습 설정
+# ============================================================
+training:
+  optimizer: Adam
+  lr: 0.001
+  weight_decay: 0.0001
+  epochs: 100
+  device: cuda
+
+  # 스케줄러
+  scheduler:
+    name: ReduceLROnPlateau
+    monitor: val_loss
+    factor: 0.5
+    patience: 5
+    min_lr: 1e-6
+
+  # Mixed Precision
+  amp: true
+
+# ============================================================
+# 손실 함수 및 평가 기준
+# ============================================================
+criteria:
+  # 재구성 손실
+  reconstruction_loss: MSE
+
+  # Early Stopping
+  early_stopping:
+    enabled: true
+    monitor: val_loss
+    patience: 15
+    min_delta: 0.0001
+    mode: min
+
+# ============================================================
+# Threshold 설정 (이상 탐지용)
+# ============================================================
+threshold:
+  # k-sigma 방식: threshold = mean + k * std
+  method: k_sigma
+  k: 2.5
+
+  # Threshold 자동 계산
+  auto_compute: true
+  save_path: models/rgb_ae/checkpoints/threshold_normal.json
+
+# ============================================================
+# 체크포인트 설정
+# ============================================================
+checkpoint:
+  save_dir: models/rgb_ae/checkpoints/normal_training
+  save_best_by: val_loss
+  save_last: true
+  save_top_k: 3
+
+# ============================================================
+# 로깅 설정
+# ============================================================
+logging:
+  tensorboard:
+    enabled: true
+    log_dir: models/rgb_ae/logs/normal_training
+    log_reconstruction: true
+    log_anomaly_heatmap: true
+
+  train_log:
+    enabled: true
+    save_path: experiments/logs/train_logs/rgb_ae_normal_train.csv
+
+# ============================================================
+# 실험 메타데이터
+# ============================================================
+experiment:
+  name: rgb_ae_normal_training
+  description: "RGB AutoEncoder 정상 학습 - 정상 패턴 학습 후 불량 탐지"
+  seed: 42

@@ -1,0 +1,30 @@
+{
+  "checkpoint": "models/rgb_ae/checkpoints/rgb_ae_best_20260107_123958.pt",
+  "metrics": {
+    "num_samples": 26749,
+    "num_normal": 1505,
+    "num_defect": 25244,
+    "score_mean": 1.9851405620574951,
+    "score_std": 0.29524147510528564,
+    "normal_score_mean": 1.0584628582000732,
+    "normal_score_std": 0.4500772953033447,
+    "defect_score_mean": 2.0403873920440674,
+    "defect_score_std": 0.16136696934700012,
+    "roc_auc": 0.9091036664875071,
+    "accuracy": 0.9885229354368388,
+    "f1": 0.9939508581111702,
+    "optimal_threshold": 1.212615966796875
+  },
+  "confusion_matrix": [
+    [
+      1220,
+      285
+    ],
+    [
+      22,
+      25222
+    ]
+  ],
+  "threshold": 1.1552659273147583,
+  "timestamp": "2026-01-07T16:40:46.745488"
+}

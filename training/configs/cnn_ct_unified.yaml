@@ -1,0 +1,152 @@
+# CT 통합 CNN Config (5클래스 다중 분류)
+#
+# Cell + Module 통합 모델: 내부 결함 탐지
+#
+# 데이터 분할 결과 (2026-01-03):
+#   Train: 138,316개 (92 배터리)
+#   Val:   26,662개 (18 배터리)
+#   Test:  36,424개 (24 배터리)
+#
+# 클래스 분포 (Train 기준):
+#   - cell_normal:           39,343 (28.4%)
+#   - cell_porosity:         12,755 (9.2%)
+#   - module_normal:         39,572 (28.6%)
+#   - module_porosity:       45,165 (32.7%)
+#   - module_resin_overflow:  1,481 (1.1%) ⚠️ 희소
+#
+# ** 중요: Train/Val/Test 배터리 완전 분리 (겹침 0%) **
+
+# ============================================================
+# 클래스 정의
+# ============================================================
+classes:
+  names:
+    - cell_normal
+    - cell_porosity
+    - module_normal
+    - module_porosity
+    - module_resin_overflow
+  num_classes: 5
+
+  # 클래스 가중치 (역빈도 기반)
+  # resin_overflow가 1.1%로 매우 희소 → 높은 가중치
+  class_weights: [1.0, 3.0, 1.0, 0.9, 25.0]
+
+# ============================================================
+# 모델 설정
+# ============================================================
+model:
+  name: resnet18
+  pretrained: true
+  num_classes: 5
+  dropout: 0.3  # 과적합 방지
+
+# ============================================================
+# 데이터 설정
+# ============================================================
+data:
+  # Split 파일 경로
+  train_split: training/data/splits/ct/train.txt
+  val_split: training/data/splits/ct/val.txt
+  test_split: training/data/splits/ct/test.txt
+
+  # 이미지 설정
+  image_size: 512  # 4000x4000 → 512x512
+  batch_size: 32
+  num_workers: 16
+
+  # 클래스 불균형 처리
+  class_balancing:
+    enabled: true
+    method: weighted_sampler  # weighted_sampler | oversampling
+
+  # 데이터 증강
+  augmentation:
+    train:
+      - RandomHorizontalFlip:
+          p: 0.5
+      - RandomVerticalFlip:
+          p: 0.5
+      - RandomRotation:
+          degrees: 15
+      - ColorJitter:
+          brightness: 0.2
+          contrast: 0.2
+    val: []  # Validation은 증강 없음
+
+# ============================================================
+# 학습 설정
+# ============================================================
+training:
+  optimizer: AdamW
+  lr: 0.0001
+  weight_decay: 0.01
+  epochs: 50
+  device: cuda
+
+  # 스케줄러
+  scheduler:
+    name: CosineAnnealingWarmRestarts
+    T_0: 10
+    T_mult: 2
+    eta_min: 1e-6
+
+  # Gradient Clipping
+  gradient_clip: 1.0
+
+  # Mixed Precision
+  amp: true
+
+# ============================================================
+# 손실 함수 및 평가 기준
+# ============================================================
+criteria:
+  loss: CrossEntropyLoss
+  use_class_weights: true
+  label_smoothing: 0.1  # 일반화 향상
+
+  # Focal Loss 옵션 (희소 클래스에 효과적)
+  focal_loss:
+    enabled: true
+    gamma: 2.0
+    alpha: null  # class_weights 사용
+
+  # Early Stopping
+  early_stopping:
+    enabled: true
+    monitor: val_f1_macro
+    patience: 10
+    min_delta: 0.001
+    mode: max
+
+# ============================================================
+# 체크포인트 설정
+# ============================================================
+checkpoint:
+  save_dir: models/ct_cnn/checkpoints
+  save_best_by: val_f1_macro
+  save_last: true
+  save_top_k: 3
+
+# ============================================================
+# 로깅 설정
+# ============================================================
+logging:
+  tensorboard:
+    enabled: true
+    log_dir: models/ct_cnn/logs
+    log_confusion_matrix: true
+    log_per_class_metrics: true
+    log_grad_cam: true  # Grad-CAM 시각화
+
+  train_log:
+    enabled: true
+    save_path: models/ct_cnn/logs/train.csv
+
+# ============================================================
+# 실험 메타데이터
+# ============================================================
+experiment:
+  name: ct_unified_resnet18
+  description: "CT Cell + Module 통합 5클래스 분류 (내부 결함 탐지)"
+  seed: 42

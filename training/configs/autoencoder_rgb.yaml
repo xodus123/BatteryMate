@@ -1,0 +1,162 @@
+# RGB AutoEncoder Config (외부 결함 탐지)
+#
+# 목적: 불량 이미지로 학습 → 정상 이미지 입력 시 높은 재구성 오류
+# 방식: Anomaly Detection (이상 탐지)
+#
+# 데이터 분할 결과 (2026-01-03):
+#   Train: 35,919개 (불량만 - pollution, mixed)
+#   Val:   11,625개 (정상 + 불량)
+#   Test:  11,719개 (정상 + 불량)
+#
+# 클래스:
+#   - normal: 정상 (Val/Test에만 포함)
+#   - pollution: 오염
+#   - mixed: 복합 결함 (pollution + damaged)
+#
+# ** Train은 불량만 사용하여 불량 패턴 학습 **
+
+# ============================================================
+# 클래스 정의
+# ============================================================
+classes:
+  names:
+    - normal
+    - pollution
+    - mixed
+  num_classes: 3
+
+# ============================================================
+# 모델 설정
+# ============================================================
+model:
+  name: ConvAutoEncoder
+
+  encoder:
+    channels: [3, 64, 128, 256, 512]  # 채널 수 증가
+    kernel_size: 4
+    stride: 2
+    padding: 1
+
+  decoder:
+    channels: [512, 256, 128, 64, 3]  # 채널 수 증가
+    kernel_size: 4
+    stride: 2
+    padding: 1
+    output_padding: 1
+
+  latent_dim: 1024  # 512 → 1024
+  dropout: 0.2
+
+# ============================================================
+# 데이터 설정
+# ============================================================
+data:
+  # Split 파일 경로
+  train_split: training/data/splits/rgb/train.txt
+  val_split: training/data/splits/rgb/val.txt
+  test_split: training/data/splits/rgb/test.txt
+
+  # 이미지 설정
+  image_size: 512  # 1920x1080 → 512x512 (디테일 보존)
+  batch_size: 32   # 512 이미지에 맞게 조정
+  num_workers: 8
+
+  # 데이터 증강 (학습 시에만)
+  augmentation:
+    train:
+      - RandomHorizontalFlip:
+          p: 0.5
+      - RandomRotation:
+          degrees: 10
+      - ColorJitter:
+          brightness: 0.1
+          contrast: 0.1
+    val: []
+
+# ============================================================
+# 학습 설정
+# ============================================================
+training:
+  optimizer: Adam
+  lr: 0.001
+  weight_decay: 0.0001
+  epochs: 100
+  device: cuda
+
+  # 스케줄러
+  scheduler:
+    name: ReduceLROnPlateau
+    monitor: val_loss
+    factor: 0.5
+    patience: 5
+    min_lr: 1e-6
+
+  # Mixed Precision
+  amp: true
+
+# ============================================================
+# 손실 함수 및 평가 기준
+# ============================================================
+criteria:
+  # 재구성 손실
+  reconstruction_loss: MSE  # MSE | L1 | SSIM
+
+  # 추가 손실 (선택)
+  perceptual_loss:
+    enabled: false
+    weight: 0.1
+
+  # Early Stopping
+  early_stopping:
+    enabled: true
+    monitor: val_loss
+    patience: 15
+    min_delta: 0.0001
+    mode: min
+
+# ============================================================
+# Threshold 설정 (이상 탐지용)
+# ============================================================
+threshold:
+  # k-sigma 방식
+  method: k_sigma
+  k: 2.5  # mean + k * std
+
+  # 백분위 방식 (대안)
+  # method: percentile
+  # percentile: 95
+
+  # Threshold 자동 계산
+  auto_compute: true
+  save_path: experiments/checkpoints/rgb_ae/threshold.json
+
+# ============================================================
+# 체크포인트 설정
+# ============================================================
+checkpoint:
+  save_dir: models/rgb_ae/checkpoints
+  save_best_by: val_loss
+  save_last: true
+  save_top_k: 3
+
+# ============================================================
+# 로깅 설정
+# ============================================================
+logging:
+  tensorboard:
+    enabled: true
+    log_dir: models/rgb_ae/logs
+    log_reconstruction: true  # 원본 vs 재구성 비교
+    log_anomaly_heatmap: true
+
+  train_log:
+    enabled: true
+    save_path: experiments/logs/train_logs/rgb_ae_train.csv
+
+# ============================================================
+# 실험 메타데이터
+# ============================================================
+experiment:
+  name: rgb_ae_anomaly
+  description: "RGB AutoEncoder 외부 결함 탐지 (불량 패턴 학습)"
+  seed: 42

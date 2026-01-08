@@ -1,0 +1,5 @@
+# Streamlit 웹앱 의존성
+streamlit>=1.28.0
+plotly>=5.18.0
+pillow>=10.0.0
+numpy>=1.24.0
