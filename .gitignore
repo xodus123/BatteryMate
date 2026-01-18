@@ -55,6 +55,7 @@ htmlcov/
 .pytest_cache/
 
 # 데이터셋 (용량 큼)
+data
 data/
 test_images/
 
