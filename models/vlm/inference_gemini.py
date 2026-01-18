@@ -179,9 +179,9 @@ class GeminiVLMInference:
 
         return result
 
-    def analyze_ensemble(self, ct_path: Optional[str], rgb_path: Optional[str]) -> Dict:
+    def analyze_combined(self, ct_path: Optional[str], rgb_path: Optional[str]) -> Dict:
         """
-        CT + RGB 앙상블 분석
+        CT + RGB 통합 분석
 
         Args:
             ct_path: CT 이미지 경로 (optional)

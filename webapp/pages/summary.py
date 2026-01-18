@@ -1,4 +1,4 @@
-"""Page 3: Summary - 3-Way Analysis Comparison (CT + RGB 앙상블 지원)"""
+"""Page 3: Summary - 3-Way Analysis Comparison (CT + RGB 통합 검사 지원)"""
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFilter
 import io
@@ -39,13 +39,13 @@ def render():
     """, unsafe_allow_html=True)
 
     # 결과 가져오기
-    ensemble_result = get_analysis_result('ensemble')
+    inspector_result = get_analysis_result('inspector')
     vlm_result = get_analysis_result('vlm')
     vlg_result = get_analysis_result('vlg')
 
     # 불량 여부 확인
     is_defect_flag = any([
-        ensemble_result and ensemble_result.prediction not in ['normal', 'unknown', 'error'],
+        inspector_result and inspector_result.prediction not in ['normal', 'unknown', 'error'],
         vlm_result and vlm_result.prediction not in ['normal', 'unknown', 'error'],
         vlg_result and vlg_result.prediction not in ['normal', 'unknown', 'error'],
     ])
@@ -66,7 +66,7 @@ def render():
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        _render_ensemble_card(ct_pil, rgb_pil, ensemble_result, analysis_mode)
+        _render_inspector_card(ct_pil, rgb_pil, inspector_result, analysis_mode)
 
     with col2:
         _render_vlm_card(ct_pil, rgb_pil, vlm_result, analysis_mode)
@@ -94,7 +94,7 @@ def render():
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        _render_ensemble_detail(ensemble_result, ct_pil, rgb_pil, analysis_mode)
+        _render_inspector_detail(inspector_result, ct_pil, rgb_pil, analysis_mode)
 
     with col2:
         _render_vlm_detail(vlm_result, analysis_mode)
@@ -103,7 +103,7 @@ def render():
         _render_vlg_detail(vlg_result, analysis_mode)
 
     # 최종 판정 표
-    _render_verdict_section(ensemble_result, vlm_result, vlg_result)
+    _render_verdict_section(inspector_result, vlm_result, vlg_result)
 
     # 하단 버튼
     st.markdown("<br>", unsafe_allow_html=True)
@@ -120,18 +120,18 @@ def render():
             _download_report()
 
 
-def _render_ensemble_card(ct_pil, rgb_pil, result, analysis_mode):
-    """앙상블 결과 카드 (파란색 박스) - st.image() 사용"""
+def _render_inspector_card(ct_pil, rgb_pil, result, analysis_mode):
+    """통합 검사 결과 카드 (파란색 박스) - st.image() 사용"""
     # 에러 상태 확인
     is_error = result and result.prediction == 'error'
 
     if is_error:
         error_msg = result.details.get('error', '모델 로드 실패') if result.details else '모델 로드 실패'
         st.markdown(f"""
-        <div class="model-box model-box-ensemble" style="border-color: #999;">
+        <div class="model-box model-box-inspector" style="border-color: #999;">
             <div class="model-box-header" style="background: linear-gradient(135deg, #999 0%, #777 100%);">
                 <span class="model-box-header-icon">🔬</span>
-                <span class="model-box-header-title">Ensemble (CNN+AE)</span>
+                <span class="model-box-header-title">통합 검사 (CNN+AE)</span>
                 <span class="model-box-header-subtitle">오류</span>
             </div>
             <div class="model-box-content" style="padding: 2rem; text-align: center;">
@@ -165,9 +165,9 @@ def _render_ensemble_card(ct_pil, rgb_pil, result, analysis_mode):
 
     # 헤더
     st.markdown(f"""
-    <div class="model-box model-box-ensemble">
+    <div class="model-box model-box-inspector">
         <div class="model-box-header">
-            <span class="model-box-header-title">Ensemble (CNN+AE)</span>
+            <span class="model-box-header-title">통합 검사 (CNN+AE)</span>
             <span class="model-box-header-subtitle">내부+외부 통합</span>
         </div>
     </div>
@@ -175,7 +175,7 @@ def _render_ensemble_card(ct_pil, rgb_pil, result, analysis_mode):
 
     # 이미지 표시 (st.image 사용)
     if visualizations:
-        if analysis_mode == 'ensemble':
+        if analysis_mode == 'inspector':
             col_ct, col_rgb = st.columns(2)
             ct_overlay = visualizations.get('ct_gradcam_overlay')
             rgb_error = visualizations.get('rgb_error_map')
@@ -323,7 +323,7 @@ def _render_vlm_card(ct_pil, rgb_pil, result, analysis_mode):
     """, unsafe_allow_html=True)
 
     # 이미지 표시 (st.image 사용)
-    if analysis_mode == 'ensemble' and ct_pil and rgb_pil:
+    if analysis_mode == 'inspector' and ct_pil and rgb_pil:
         col_ct, col_rgb = st.columns(2)
         with col_ct:
             ct_overlay = _generate_vlm_overlay(ct_pil, result, 'ct')
@@ -418,7 +418,7 @@ def _render_vlg_card(ct_pil, rgb_pil, result, analysis_mode):
     """, unsafe_allow_html=True)
 
     # 이미지 표시 (st.image 사용)
-    if analysis_mode == 'ensemble' and ct_pil and rgb_pil:
+    if analysis_mode == 'inspector' and ct_pil and rgb_pil:
         col_ct, col_rgb = st.columns(2)
         with col_ct:
             ct_overlay = _generate_vlg_overlay(ct_pil, result, 'ct')
@@ -442,10 +442,10 @@ def _render_vlg_card(ct_pil, rgb_pil, result, analysis_mode):
     """, unsafe_allow_html=True)
 
 
-def _render_ensemble_detail(result, ct_pil, rgb_pil, analysis_mode):
-    """앙상블 시스템 상세"""
+def _render_inspector_detail(result, ct_pil, rgb_pil, analysis_mode):
+    """통합 검사 시스템 상세"""
     # 디버깅
-    print(f"[DEBUG] _render_ensemble_detail: result={result is not None}")
+    print(f"[DEBUG] _render_inspector_detail: result={result is not None}")
     if result:
         print(f"[DEBUG]   prediction={result.prediction}, confidence={result.confidence:.2%}, defect_type={result.defect_type}")
         print(f"[DEBUG]   details keys={list(result.details.keys()) if result.details else None}")
@@ -459,8 +459,8 @@ def _render_ensemble_detail(result, ct_pil, rgb_pil, analysis_mode):
 
     st.markdown("""
     <div class="system-card">
-        <div class="system-title">🔬 Ensemble System</div>
-        <div class="system-subtitle">CNN + AutoEncoder 앙상블</div>
+        <div class="system-title">🔬 Battery Inspector</div>
+        <div class="system-subtitle">CNN + AutoEncoder 논리 결합</div>
     """, unsafe_allow_html=True)
 
     if result:
@@ -483,7 +483,7 @@ def _render_ensemble_detail(result, ct_pil, rgb_pil, analysis_mode):
         """, unsafe_allow_html=True)
 
         # 분석 모드
-        mode_text = {'ensemble': 'CT + RGB 앙상블', 'ct_only': 'CT 분석', 'rgb_only': 'RGB 분석'}
+        mode_text = {'inspector': 'CT + RGB 통합 검사', 'ct_only': 'CT 분석', 'rgb_only': 'RGB 분석'}
         st.markdown(f"""
         <div class="detail-section">
             <div class="detail-label">분석 모드</div>
@@ -787,12 +787,12 @@ def _render_vlg_detail(result, analysis_mode):
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-def _render_verdict_section(ensemble_result, vlm_result, vlg_result):
+def _render_verdict_section(inspector_result, vlm_result, vlg_result):
     """최종 판정 섹션"""
 
     # 디버깅: 실제 결과 출력
     print(f"[DEBUG] _render_verdict_section:")
-    print(f"[DEBUG]   ensemble: prediction={ensemble_result.prediction if ensemble_result else None}, defect_type={ensemble_result.defect_type if ensemble_result else None}")
+    print(f"[DEBUG]   ensemble: prediction={inspector_result.prediction if inspector_result else None}, defect_type={inspector_result.defect_type if inspector_result else None}")
     print(f"[DEBUG]   vlm: prediction={vlm_result.prediction if vlm_result else None}, defect_type={vlm_result.defect_type if vlm_result else None}")
     print(f"[DEBUG]   vlg: prediction={vlg_result.prediction if vlg_result else None}, defect_type={vlg_result.defect_type if vlg_result else None}")
 
@@ -813,15 +813,15 @@ def _render_verdict_section(ensemble_result, vlm_result, vlg_result):
 
     # 각 모델의 결과 집계
     valid_results = []
-    if ensemble_result and ensemble_result.prediction != 'error':
-        dtype = classify_prediction(ensemble_result.prediction)
+    if inspector_result and inspector_result.prediction != 'error':
+        dtype = classify_prediction(inspector_result.prediction)
         if dtype:
             if dtype == 'complex':
                 defect_types['internal'] += 1
                 defect_types['external'] += 1
             elif dtype in defect_types:
                 defect_types[dtype] += 1
-            valid_results.append(('ensemble', ensemble_result))
+            valid_results.append(('inspector', inspector_result))
 
     if vlm_result and vlm_result.prediction != 'error':
         dtype = classify_prediction(vlm_result.prediction)
@@ -862,7 +862,7 @@ def _render_verdict_section(ensemble_result, vlm_result, vlg_result):
         verdict_kr = "정상"
         main_defect_class = 'cell_normal'
 
-    # 상세 결함 유형 가져오기 (앙상블 > VLG > VLM 우선순위)
+    # 상세 결함 유형 가져오기 (통합 검사 > VLG > VLM 우선순위)
     detail_defect_type = None
     for model_name, result in valid_results:
         if result.defect_type:
@@ -910,11 +910,11 @@ def _render_verdict_section(ensemble_result, vlm_result, vlg_result):
             return '-'
         return f'{result.confidence:.1%}'
 
-    ensemble_badge = get_result_badge(ensemble_result, 'ensemble')
+    ensemble_badge = get_result_badge(inspector_result, 'inspector')
     vlm_badge = get_result_badge(vlm_result, 'vlm')
     vlg_badge = get_result_badge(vlg_result, 'vlg')
 
-    ensemble_conf = get_confidence(ensemble_result)
+    ensemble_conf = get_confidence(inspector_result)
     vlm_conf = get_confidence(vlm_result)
     vlg_conf = get_confidence(vlg_result)
 
@@ -934,7 +934,7 @@ def _render_verdict_section(ensemble_result, vlm_result, vlg_result):
                 <th style="padding: 8px; text-align: center; border: 1px solid #e9ecef;">신뢰도</th>
             </tr>
             <tr>
-                <td style="padding: 8px; border: 1px solid #e9ecef;">🔬 Ensemble (CNN+AE)</td>
+                <td style="padding: 8px; border: 1px solid #e9ecef;">🔬 통합 검사 (CNN+AE)</td>
                 <td style="padding: 8px; text-align: center; border: 1px solid #e9ecef;">{ensemble_badge}</td>
                 <td style="padding: 8px; text-align: center; border: 1px solid #e9ecef;">{ensemble_conf}</td>
             </tr>
@@ -954,7 +954,7 @@ def _render_verdict_section(ensemble_result, vlm_result, vlg_result):
 
     # 종합 판정
     defect_count = len(valid_results)
-    total_models = 3  # ensemble, vlm, vlg
+    total_models = 3  # inspector, vlm, vlg
 
     # verdict 색상 결정
     if verdict_kr == "정상":
@@ -1278,7 +1278,7 @@ def _download_report():
         'results': {}
     }
 
-    for model_id in ['ensemble', 'vlm', 'vlg']:
+    for model_id in ['inspector', 'vlm', 'vlg']:
         result = get_analysis_result(model_id)
         if result:
             report['results'][model_id] = {

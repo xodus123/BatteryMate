@@ -7,7 +7,7 @@
 
 ### 핵심 특징
 - **멀티모달 분석**: CT 이미지(내부 결함)와 RGB 이미지(외부 결함) 동시 분석
-- **3-Way 앙상블**: CNN + AutoEncoder + VLM/VLG 다중 모델 검증
+- **3-Way 검사 시스템**: CNN + AutoEncoder + VLM/VLG 다중 모델 검증
 - **실시간 웹 인터페이스**: Streamlit 기반 대시보드로 즉시 결과 확인
 - **설명 가능한 AI**: Grad-CAM, Error Map, Grounding 시각화 제공
 
@@ -29,7 +29,7 @@
 [배터리 이미지 입력: CT + RGB]
            ↓
 ┌──────────────────────────────────────────────────┐
-│  System 1: CNN+AE+Grad-CAM 앙상블                │
+│  System 1: CNN+AE+Grad-CAM 통합 검사                │
 │  ┌────────────────┬──────────────────┐          │
 │  │  CT CNN        │  RGB AutoEncoder │          │
 │  │  (ResNet18)    │  (CAE)           │          │
@@ -61,8 +61,22 @@
 ### 검사 흐름
 1. **이미지 업로드**: CT/RGB 이미지 입력
 2. **병렬 추론**: 3개 모델이 동시에 분석 수행
-3. **결과 통합**: 내부/외부 결함 여부 종합 판정
+3. **결과 비교**: 각 모델의 독립적인 판정 결과를 나란히 표시
 4. **시각화**: Grad-CAM, Error Map, Bounding Box 등 근거 제시
+
+### 결과 표시 방식
+
+3개 모델은 **가중 평균(앙상블)하지 않고** 각각 독립적으로 판정한 결과를 나란히 표시합니다.
+사용자가 세 모델의 결과를 비교하여 최종 판단할 수 있습니다.
+
+| 모델 | 역할 | 판정 방식 |
+|------|------|----------|
+| **통합 검사기** | 정량적 분류 | CT+RGB 논리 결합 (내부/외부/복합불량) |
+| **VLM** | 정성적 분석 | 자연어 기반 결함 설명 |
+| **VLG** | 위치 검출 | Bounding Box 시각화 |
+
+> **참고**: "통합 검사기"는 CT CNN과 RGB AE 두 모델의 결과를 논리적으로 결합(AND/OR)하여 판정합니다.
+> 세 시스템(통합 검사기, VLM, VLG)을 다시 합치는 앙상블은 없습니다.
 
 ---
 
@@ -256,7 +270,7 @@ ResNet18CBAM:
 | 채택 여부 | ❌ 미채택 (기본 ResNet18 사용) |
 | 주요 원인 | 성능 향상 없음, 복잡도만 증가 |
 | 교훈 | Attention이 항상 성능 향상을 보장하지 않음 |
-| 대안 | 데이터 증강, 앙상블 등 다른 방법 적용 |
+| 대안 | 데이터 증강, 다중 모델 등 다른 방법 적용 |
 
 #### 체크포인트 관리
 ```
@@ -457,7 +471,7 @@ python scripts/create_rgb_normal_splits.py
 
 ---
 
-### 3. Ensemble (CNN + AE 통합)
+### 3. 통합 검사기 (CNN + AE 논리 결합)
 
 #### 판정 로직
 | CT 결과 | RGB 결과 | 최종 판정 |
@@ -644,7 +658,7 @@ streamlit run webapp/app.py --server.port 8501
 
 | 항목 | 내용 |
 |------|------|
-| 테스트 이미지 | 앙상블 데모 (RGB 외부 오염 결함) |
+| 테스트 이미지 | 통합 검사 데모 (RGB 외부 오염 결함) |
 | Ground Truth | **외부불량** (오염) |
 | GPU | CUDA (RTX 시리즈) |
 | 테스트 날짜 | 2026-01-08 |
@@ -664,7 +678,7 @@ streamlit run webapp/app.py --server.port 8501
 
 **테스트 1: Gemini + GroundingDINO (최적 조합)**
 ```
-[WEBAPP] 15:05:48 - ✅ Ensemble 추론 완료: 외부불량 (신뢰도: 94.2%)
+[WEBAPP] 15:05:48 - ✅ 통합 검사 추론 완료: 외부불량 (신뢰도: 94.2%)
 [WEBAPP] 15:05:56 - ✅ VLM 추론 완료 (Gemini 2.0 Flash): 외부불량 (신뢰도: 95.0%)
 [WEBAPP] 15:06:00 - ✅ VLG 추론 완료 (GroundingDINO): 외부불량 - 1개 검출 (최대 신뢰도: 39.9%)
 
@@ -729,11 +743,11 @@ streamlit run webapp/app.py --server.port 8501
 
 #### 핵심 발견 및 교훈
 
-**1. Ensemble의 안정성**
+**1. 통합 검사기의 안정성**
 ```
 ✅ 모든 테스트에서 일관되게 "외부불량 94.2%" 출력
 ✅ VLM/VLG 조합과 무관하게 항상 정확한 판정
-→ 최종 판정은 Ensemble을 기준으로 해야 함
+→ 최종 판정은 통합 검사기를 기준으로 해야 함
 ```
 
 **2. Gemini API의 우수성**
@@ -782,17 +796,17 @@ streamlit run webapp/app.py --server.port 8501
 | 최적 VLM | **Gemini 2.0 Flash** (정확도 + 속도 모두 우수) |
 | 최적 VLG | **GroundingDINO** (유일하게 결함 탐지 성공) |
 | 최적 조합 | **Gemini + GroundingDINO** (3개 모델 모두 정확) |
-| Ensemble 역할 | 최종 판정 기준 (VLM/VLG 오판 시 보정) |
+| 통합 검사기 역할 | 최종 판정 기준 (VLM/VLG 오판 시 보정) |
 
 ---
 
 ## 3-Way 모델 비교 분석
 
-본 시스템은 3개의 독립적인 분석 모델을 사용하여 다각도로 결함을 검출합니다. 각 모델의 특성과 한계를 분석하여 상호 보완적인 앙상블 시스템을 구축했습니다.
+본 시스템은 3개의 독립적인 분석 모델을 사용하여 다각도로 결함을 검출합니다. 각 모델의 특성과 한계를 분석하여 상호 보완적인 다중 모델 시스템을 구축했습니다.
 
 ### 모델별 역할 및 특성
 
-| 구분 | Ensemble (CNN+AE) | VLM (Qwen2-VL) | VLG (GroundingDINO) |
+| 구분 | 통합 검사 (CNN+AE) | VLM (Qwen2-VL) | VLG (GroundingDINO) |
 |------|-------------------|----------------|---------------------|
 | **역할** | 정량적 분류 | 정성적 분석 | 위치 탐지 |
 | **출력** | 클래스 확률 | 자연어 소견서 | 바운딩 박스 |
@@ -801,7 +815,7 @@ streamlit run webapp/app.py --server.port 8501
 
 ### 상세 분석
 
-#### 🔬 Ensemble (CT CNN + RGB AutoEncoder)
+#### 🔬 통합 검사기 (CT CNN + RGB AutoEncoder)
 
 **강점:**
 ```
@@ -894,7 +908,7 @@ streamlit run webapp/app.py --server.port 8501
         ┌─────────────────────┼─────────────────────┐
         ▼                     ▼                     ▼
 ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
-│   Ensemble    │     │     VLM       │     │     VLG       │
+│ 통합검사기  │     │     VLM       │     │     VLG       │
 │   (CNN+AE)    │     │  (Qwen2-VL)   │     │(GroundingDINO)│
 ├───────────────┤     ├───────────────┤     ├───────────────┤
 │ • 분류 정확도 │     │ • 자연어 설명 │     │ • 위치 좌표   │
@@ -919,7 +933,7 @@ streamlit run webapp/app.py --server.port 8501
 
 | 모델 | 출력 예시 |
 |------|-----------|
-| **Ensemble** | `prediction: "internal_defect", confidence: 0.95, class: "module_porosity"` |
+| **통합 검사기** | `prediction: "internal_defect", confidence: 0.95, class: "module_porosity"` |
 | **VLM** | `"이미지 중앙부에 직경 약 2mm의 기공(porosity)이 관찰됩니다. 이는 제조 과정에서 가스가 빠져나가지 못해 발생한 것으로 추정되며, 배터리 성능에 영향을 줄 수 있습니다."` |
 | **VLG** | `[{label: "porosity", bbox: [0.45, 0.52, 0.08, 0.06], score: 0.87}]` |
 
@@ -927,7 +941,7 @@ streamlit run webapp/app.py --server.port 8501
 
 | 질문 | 답변 모델 |
 |------|-----------|
-| "이 배터리는 불량인가요?" | **Ensemble** (정확한 분류) |
+| "이 배터리는 불량인가요?" | **통합 검사기** (정확한 분류) |
 | "왜 불량인가요? 설명해주세요" | **VLM** (자연어 설명) |
 | "결함이 정확히 어디에 있나요?" | **VLG** (바운딩 박스) |
 
@@ -941,7 +955,7 @@ VLM      → 사람이 이해할 수 있는 설명
 VLG      → 시각적 근거 제시
 ```
 
-**3-Way 앙상블의 가치:**
+**3-Way 검사 시스템의 가치:**
 - 각 모델의 강점을 결합하여 약점 보완
 - 검사자에게 다각적 정보 제공
 - 설명 가능한 AI (XAI) 구현
@@ -966,7 +980,7 @@ VLG      → 시각적 근거 제시
 #### 2. 결과 요약 페이지
 ```
 ┌─────────────────────────────────────────────┐
-│  🔬 Ensemble    │  🤖 VLM     │  🎯 VLG     │
+│  🔬 통합 검사기    │  🤖 VLM     │  🎯 VLG     │
 │  (CNN+AE)      │ (Qwen2-VL) │(GroundingDINO)│
 ├─────────────────┼─────────────┼─────────────┤
 │  CT Grad-CAM   │  CT 분석    │  CT 탐지    │
@@ -1037,8 +1051,8 @@ battery-inspection/
 │   │   ├── checkpoints/      # 모델 체크포인트
 │   │   └── runs/             # TensorBoard 로그
 │   │
-│   ├── ensemble/
-│   │   ├── ensemble.py       # 앙상블 통합 모듈
+│   ├── inspector/
+│   │   ├── inspector.py       # 통합 검사 모듈
 │   │   ├── predictor.py      # CT/RGB 개별 예측기
 │   │   └── gradcam.py        # Grad-CAM 구현
 │   │

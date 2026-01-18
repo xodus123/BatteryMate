@@ -92,7 +92,9 @@ class CTUnifiedTrainer:
             batch_size=config['data']['batch_size'],
             num_workers=config['data']['num_workers'],
             image_size=config['data']['image_size'],
-            modality='ct'
+            modality='ct',
+            preprocessed=config['data'].get('preprocessed', False),
+            use_albumentations=config['data'].get('use_albumentations', False)
         )
 
         # TensorBoard Logger

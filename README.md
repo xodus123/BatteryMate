@@ -10,7 +10,7 @@
 ## 주요 기능
 
 - **멀티모달 분석**: CT 이미지(내부 결함) + RGB 이미지(외부 결함) 동시 분석
-- **3-Way 앙상블**: CNN + AutoEncoder + VLM/VLG 다중 모델 검증
+- **3-Way 검사 시스템**: CNN + AutoEncoder + VLM/VLG 다중 모델 검증
 - **설명 가능한 AI**: Grad-CAM, Error Map, Bounding Box 시각화
 - **실시간 웹 대시보드**: Streamlit 기반 즉시 결과 확인
 
@@ -20,7 +20,7 @@
 [배터리 이미지 입력: CT + RGB]
            ↓
 ┌──────────────────────────────────────────────────┐
-│  System 1: CNN+AE+Grad-CAM 앙상블                │
+│  System 1: CNN+AE+Grad-CAM 통합 검사                │
 │  ┌────────────────┬──────────────────┐          │
 │  │  CT CNN        │  RGB AutoEncoder │          │
 │  │  (ResNet18)    │  (CAE)           │          │
@@ -48,6 +48,20 @@
 │  Web UI: 3개 시스템 결과 비교 시각화            │
 └──────────────────────────────────────────────────┘
 ```
+
+## 결과 표시 방식
+
+3개 모델은 **가중 평균(앙상블)하지 않고** 각각 독립적으로 판정한 결과를 나란히 표시합니다.
+사용자가 세 모델의 결과를 비교하여 최종 판단할 수 있습니다.
+
+| 모델 | 역할 | 판정 방식 |
+|------|------|----------|
+| **통합 검사기** | 정량적 분류 | CT+RGB 논리 결합 (내부/외부/복합불량) |
+| **VLM** | 정성적 분석 | 자연어 기반 결함 설명 |
+| **VLG** | 위치 검출 | Bounding Box 시각화 |
+
+> **참고**: "통합 검사기"는 CT CNN과 RGB AE 두 모델의 결과를 논리적으로 결합(AND/OR)하여 판정합니다.
+> 세 시스템(통합 검사기, VLM, VLG)을 다시 합치는 앙상블은 없습니다.
 
 ## 모델 성능
 
@@ -82,8 +96,8 @@ battery-inspection/
 │   │   ├── model.py      # ConvAutoEncoder 정의
 │   │   ├── train.py      # 학습 스크립트
 │   │   └── checkpoints/  # 모델 체크포인트
-│   ├── ensemble/         # 앙상블 통합 모듈
-│   │   ├── ensemble.py   # CNN+AE 통합
+│   ├── inspector/         # 통합 검사 모듈
+│   │   ├── inspector.py   # CNN+AE 논리 결합
 │   │   └── predictor.py  # 개별 예측기
 │   ├── vlm/              # VLM (Qwen2-VL, Gemini)
 │   │   ├── inference.py  # Qwen2-VL 추론

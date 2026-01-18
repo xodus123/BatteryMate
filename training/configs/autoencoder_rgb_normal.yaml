@@ -49,14 +49,18 @@ model:
 # ============================================================
 data:
   # Split 파일 경로 (정상 학습용)
-  train_split: training/data/splits/rgb/train.txt      # 정상만
-  val_split: training/data/splits/rgb/val.txt
-  test_split: training/data/splits/rgb/test.txt
+  train_split: training/data/splits/rgb/preprocessed_train.txt
+  val_split: training/data/splits/rgb/preprocessed_val.txt
+  test_split: training/data/splits/rgb/preprocessed_test.txt
 
   # 이미지 설정
-  image_size: 512
-  batch_size: 32
+  image_size: 1024
+  batch_size: 16
   num_workers: 8
+
+  # 전처리 옵션
+  preprocessed: true          # 사전 전처리된 데이터 사용 (Resize 제외)
+  use_albumentations: true    # Albumentations 사용 (CLAHE, Sharpen 등)
 
   # 데이터 증강 (학습 시에만)
   augmentation:

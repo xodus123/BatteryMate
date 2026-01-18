@@ -13,6 +13,7 @@ numpy>=1.24.0
 pandas>=2.0.0
 pillow>=9.5.0
 opencv-python>=4.8.0
+albumentations>=1.3.0
 
 # 평가 지표
 scikit-learn>=1.3.0

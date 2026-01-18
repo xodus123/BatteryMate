@@ -22,8 +22,8 @@ import json
 from models.rgb_ae.model import create_model, ConvAutoEncoder
 from training.configs.config_loader import ConfigLoader
 from training.data.dataset import BatteryDataset
+from training.data.transforms import get_transforms, get_albumentations_transforms
 from training.visualization.tensorboard_logger import TensorBoardLogger
-import torchvision.transforms as transforms
 from sklearn.metrics import roc_curve, roc_auc_score
 
 
@@ -145,34 +145,30 @@ class AETrainer:
         """데이터 로더 생성"""
         data_config = self.config['data']
         image_size = data_config['image_size']
+        preprocessed = data_config.get('preprocessed', False)
+        use_albumentations = data_config.get('use_albumentations', False)
 
-        # Transform 정의
-        train_transform = transforms.Compose([
-            transforms.Resize((image_size, image_size)),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomRotation(10),
-            transforms.ColorJitter(brightness=0.1, contrast=0.1),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
-
-        val_transform = transforms.Compose([
-            transforms.Resize((image_size, image_size)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
+        # Transform 선택
+        if use_albumentations:
+            train_transform = get_albumentations_transforms('rgb', 'train', image_size, preprocessed)
+            val_transform = get_albumentations_transforms('rgb', 'val', image_size, preprocessed)
+        else:
+            train_transform = get_transforms('rgb', 'train', image_size, preprocessed)
+            val_transform = get_transforms('rgb', 'val', image_size, preprocessed)
 
         # Dataset
         train_dataset = BatteryDataset(
             split_file=data_config['train_split'],
             transform=train_transform,
-            modality='rgb'
+            modality='rgb',
+            preprocessed=preprocessed
         )
 
         val_dataset = BatteryDataset(
             split_file=data_config['val_split'],
             transform=val_transform,
-            modality='rgb'
+            modality='rgb',
+            preprocessed=preprocessed
         )
 
         # DataLoader

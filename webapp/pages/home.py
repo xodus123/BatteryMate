@@ -1,4 +1,4 @@
-"""Page 1: Home - 이미지 업로드 (CT + RGB 앙상블 지원)"""
+"""Page 1: Home - 이미지 업로드 (CT + RGB 통합 검사 지원)"""
 import streamlit as st
 from PIL import Image
 import io
@@ -24,7 +24,7 @@ def render():
     <div class="card" style="padding: 1rem 1.5rem; margin-bottom: 1.5rem; background: #f8f9fa;">
         <div style="color: #333; font-size: 0.95rem;">
             <strong>📌 업로드 안내</strong><br>
-            • <b>CT + RGB 둘 다</b>: 앙상블 분석 (내부 + 외부 결함 종합 판정)<br>
+            • <b>CT + RGB 둘 다</b>: 통합 검사 (내부 + 외부 결함 종합 판정)<br>
             • <b>CT만</b>: 내부 결함 분석 (기공, 레진 오버플로우)<br>
             • <b>RGB만</b>: 외부 결함 분석 (오염, 손상)
         </div>
@@ -89,8 +89,8 @@ def render():
     st.markdown("<br>", unsafe_allow_html=True)
 
     if ct_image is not None and rgb_image is not None:
-        analysis_mode = "ensemble"
-        mode_text = "🔗 <b>앙상블 분석</b> - CT (내부) + RGB (외부) 종합 판정"
+        analysis_mode = "inspector"
+        mode_text = "🔗 <b>통합 검사</b> - CT (내부) + RGB (외부) 종합 판정"
         mode_color = "#28a745"
     elif ct_image is not None:
         analysis_mode = "ct_only"
@@ -207,8 +207,8 @@ def render():
         if st.button("📷 RGB 데모", width="stretch"):
             _load_demo_image(mode='rgb_only')
     with col3:
-        if st.button("🔗 앙상블 데모", width="stretch"):
-            _load_demo_image(mode='ensemble')
+        if st.button("🔗 통합 검사 데모", width="stretch"):
+            _load_demo_image(mode='inspector')
 
 
 def _load_demo_image(mode: str = 'ensemble'):
@@ -221,7 +221,7 @@ def _load_demo_image(mode: str = 'ensemble'):
     rgb_filename = None
 
     # CT 데모 이미지 생성
-    if mode in ['ct_only', 'ensemble']:
+    if mode in ['ct_only', 'inspector']:
         width, height = 512, 512
         img_array = np.ones((height, width, 3), dtype=np.uint8) * 40
 
@@ -255,7 +255,7 @@ def _load_demo_image(mode: str = 'ensemble'):
         ct_filename = "demo_battery_ct.png"
 
     # RGB 데모 이미지 생성
-    if mode in ['rgb_only', 'ensemble']:
+    if mode in ['rgb_only', 'inspector']:
         width, height = 512, 512
         img_array = np.ones((height, width, 3), dtype=np.uint8) * 200  # 밝은 배경
 

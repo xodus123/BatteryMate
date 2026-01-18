@@ -220,20 +220,20 @@ def apply_custom_styles():
         color: #666;
     }
 
-    /* Ensemble 박스 (파랑) */
-    .model-box-ensemble {
+    /* Inspector 박스 (파랑) */
+    .model-box-inspector {
         border-color: #2196F3;
     }
 
-    .model-box-ensemble .model-box-header {
+    .model-box-inspector .model-box-header {
         background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
     }
 
-    .model-box-ensemble .model-box-result.defect {
+    .model-box-inspector .model-box-result.defect {
         color: #DC3545;
     }
 
-    .model-box-ensemble .model-box-result.normal {
+    .model-box-inspector .model-box-result.normal {
         color: #28A745;
     }
 
