@@ -28,7 +28,7 @@ def render():
     col1, col2 = st.columns([3, 1])
 
     with col1:
-        model_icons = {'ensemble': '🛡️', 'vlm': '🤖', 'vlg': '🎯'}
+        model_icons = {'inspector': '🛡️', 'vlm': '🤖', 'vlg': '🎯'}
         icon = model_icons.get(model_id, '📊')
         st.markdown(f"""
         <div class="main-header">
@@ -41,16 +41,16 @@ def render():
             navigate_to('summary')
 
     # 모델별 상세 페이지 렌더링
-    if model_id == 'ensemble':
-        _render_ensemble_detail(result)
+    if model_id == 'inspector':
+        _render_inspector_detail(result)
     elif model_id == 'vlm':
         _render_vlm_detail(result)
     elif model_id == 'vlg':
         _render_vlg_detail(result)
 
 
-def _render_ensemble_detail(result):
-    """앙상블 모델 상세 (Scalars & Images Style)"""
+def _render_inspector_detail(result):
+    """통합 검사 모델 상세 (Scalars & Images Style)"""
 
     # 탭 구성
     tab_images, tab_scalars, tab_dist = st.tabs([

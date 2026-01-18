@@ -45,15 +45,19 @@ model:
 # 데이터 설정
 # ============================================================
 data:
-  # Split 파일 경로
-  train_split: training/data/splits/ct/train.txt
-  val_split: training/data/splits/ct/val.txt
-  test_split: training/data/splits/ct/test.txt
+  # Split 파일 경로 (전처리된 데이터 사용 시 preprocessed_*.txt)
+  train_split: training/data/splits/ct/preprocessed_train.txt
+  val_split: training/data/splits/ct/preprocessed_val.txt
+  test_split: training/data/splits/ct/preprocessed_test.txt
 
   # 이미지 설정
-  image_size: 512  # 4000x4000 → 512x512
-  batch_size: 32
+  image_size: 1024
+  batch_size: 16  # 1024 이미지에 맞게 조정
   num_workers: 16
+
+  # 전처리 옵션
+  preprocessed: true          # 사전 전처리된 데이터 사용 (Resize 제외)
+  use_albumentations: true    # Albumentations 사용 (CLAHE, Sharpen 등)
 
   # 클래스 불균형 처리
   class_balancing:

@@ -27,12 +27,12 @@ def init_session_state():
         'image_path': None,
         'image_modality': 'ct',  # 'ct' or 'rgb'
 
-        # CT/RGB 분리 업로드 (앙상블용)
+        # CT/RGB 분리 업로드 (통합 검사용)
         'ct_image': None,
         'ct_filename': None,
         'rgb_image': None,
         'rgb_filename': None,
-        'analysis_mode': None,  # 'ensemble', 'ct_only', 'rgb_only'
+        'analysis_mode': None,  # 'inspector', 'ct_only', 'rgb_only'
 
         # 모델 설정
         'vlg_model_type': 'groundingdino',  # 'groundingdino' or 'yoloworld'
@@ -40,7 +40,7 @@ def init_session_state():
 
         # 분석 결과
         'analysis_results': {
-            'ensemble': None,
+            'inspector': None,
             'vlm': None,
             'vlg': None,
         },
@@ -73,7 +73,7 @@ def set_uploaded_image(image_data, filename: str, modality: str = 'ct'):
     st.session_state.image_modality = modality
     st.session_state.analysis_complete = False
     st.session_state.analysis_results = {
-        'ensemble': None,
+        'inspector': None,
         'vlm': None,
         'vlg': None,
     }
@@ -86,7 +86,7 @@ def set_uploaded_images(
     rgb_filename: str = None,
     analysis_mode: str = None
 ):
-    """CT/RGB 이미지 분리 업로드 (앙상블용)"""
+    """CT/RGB 이미지 분리 업로드 (통합 검사용)"""
     st.session_state.ct_image = ct_image_data
     st.session_state.ct_filename = ct_filename
     st.session_state.rgb_image = rgb_image_data
@@ -94,7 +94,7 @@ def set_uploaded_images(
     st.session_state.analysis_mode = analysis_mode
     st.session_state.analysis_complete = False
     st.session_state.analysis_results = {
-        'ensemble': None,
+        'inspector': None,
         'vlm': None,
         'vlg': None,
     }
@@ -143,7 +143,7 @@ def reset_analysis():
     # 분석 결과
     st.session_state.analysis_complete = False
     st.session_state.analysis_results = {
-        'ensemble': None,
+        'inspector': None,
         'vlm': None,
         'vlg': None,
     }

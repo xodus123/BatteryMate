@@ -16,11 +16,11 @@ from PIL import Image
 import numpy as np
 import json
 from typing import Dict, Tuple, Optional
-import torchvision.transforms as transforms
 
 from models.ct_cnn.model import create_model as create_cnn_model
 from models.rgb_ae.model import create_model as create_ae_model
 from training.configs.config_loader import ConfigLoader
+from training.data.transforms import get_transforms, get_albumentations_transforms
 
 
 class CTCNNPredictor:
@@ -52,26 +52,31 @@ class CTCNNPredictor:
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.model.eval()
 
-        # Transform
+        # Transform (config에서 설정 읽기)
         image_size = self.config['data']['image_size']
-        self.transform = transforms.Compose([
-            transforms.Resize((image_size, image_size)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
+        preprocessed = self.config['data'].get('preprocessed', False)
+        use_albumentations = self.config['data'].get('use_albumentations', False)
+
+        if use_albumentations:
+            self.transform = get_albumentations_transforms('ct', 'test', image_size, preprocessed)
+        else:
+            self.transform = get_transforms('ct', 'test', image_size, preprocessed)
 
         # Grad-CAM
         self.gradcam = None
         self.image_size = image_size
+        self.preprocessed = preprocessed
 
         print(f"CTCNNPredictor 로드 완료")
         print(f"   - Checkpoint: {checkpoint_path}")
+        print(f"   - Image Size: {image_size}")
+        print(f"   - Preprocessed: {preprocessed}")
         print(f"   - Device: {self.device}")
 
     def _init_gradcam(self, target_layer: str = 'layer4'):
         """Grad-CAM 초기화 (lazy loading)"""
         if self.gradcam is None:
-            from models.ensemble.gradcam import GradCAM
+            from models.inspector.gradcam import GradCAM
             self.gradcam = GradCAM(self.model, target_layer=target_layer)
         return self.gradcam
 
@@ -257,16 +262,23 @@ class RGBAEPredictor:
                     self.score_mean = threshold_data.get('mean', None)
                     self.score_std = threshold_data.get('std', None)
 
-        # Transform
+        # Transform (config에서 설정 읽기)
         image_size = self.config['data']['image_size']
-        self.transform = transforms.Compose([
-            transforms.Resize((image_size, image_size)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
+        preprocessed = self.config['data'].get('preprocessed', False)
+        use_albumentations = self.config['data'].get('use_albumentations', False)
+
+        if use_albumentations:
+            self.transform = get_albumentations_transforms('rgb', 'test', image_size, preprocessed)
+        else:
+            self.transform = get_transforms('rgb', 'test', image_size, preprocessed)
+
+        self.image_size = image_size
+        self.preprocessed = preprocessed
 
         print(f"RGBAEPredictor 로드 완료")
         print(f"   - Checkpoint: {checkpoint_path}")
+        print(f"   - Image Size: {image_size}")
+        print(f"   - Preprocessed: {preprocessed}")
         print(f"   - Threshold: {self.threshold:.4f}")
         print(f"   - Device: {self.device}")
 

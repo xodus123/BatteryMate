@@ -25,7 +25,7 @@ from sklearn.metrics import roc_auc_score, roc_curve, precision_recall_curve, f1
 from models.rgb_ae.model import create_model, ConvAutoEncoder
 from training.configs.config_loader import ConfigLoader
 from training.data.dataset import BatteryDataset
-import torchvision.transforms as transforms
+from training.data.transforms import get_transforms, get_albumentations_transforms
 
 
 class AETester:
@@ -89,17 +89,20 @@ class AETester:
         """테스트 데이터 로더 생성"""
         data_config = self.config['data']
         image_size = data_config['image_size']
+        preprocessed = data_config.get('preprocessed', False)
+        use_albumentations = data_config.get('use_albumentations', False)
 
-        transform = transforms.Compose([
-            transforms.Resize((image_size, image_size)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
+        # Transform 선택
+        if use_albumentations:
+            transform = get_albumentations_transforms('rgb', 'test', image_size, preprocessed)
+        else:
+            transform = get_transforms('rgb', 'test', image_size, preprocessed)
 
         test_dataset = BatteryDataset(
             split_file=data_config['test_split'],
             transform=transform,
-            modality='rgb'
+            modality='rgb',
+            preprocessed=preprocessed
         )
 
         test_loader = DataLoader(

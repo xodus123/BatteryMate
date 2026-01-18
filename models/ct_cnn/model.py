@@ -1,6 +1,6 @@
-"""ResNet18 모델 정의 - CT 데이터 분류
+"""ResNet18 모델 정의 - CT 데이터 분류 (5클래스)
 
-성능: 99.2% Accuracy, 98.8% F1-Score (5클래스 분류)
+클래스: cell_normal, cell_porosity, module_normal, module_porosity, module_resin_overflow
 """
 import torch
 import torch.nn as nn

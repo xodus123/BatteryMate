@@ -30,16 +30,16 @@ def log(msg: str):
 
 # 모델 싱글톤 (앱 시작 시 한 번만 로드)
 @st.cache_resource
-def load_ensemble_model():
-    """앙상블 모델 로드 (캐싱)"""
-    log("🔵 Ensemble 모델 로드 시작...")
-    from models.ensemble.ensemble import create_ensemble
+def load_inspector():
+    """통합 검사기 로드 (캐싱)"""
+    log("🔵 통합 검사기 로드 시작...")
+    from models.inspector.inspector import create_inspector
     try:
-        ensemble = create_ensemble()
-        log("✅ Ensemble 모델 로드 성공!")
-        return ensemble, None
+        inspector = create_inspector()
+        log("✅ 통합 검사기 로드 성공!")
+        return inspector, None
     except Exception as e:
-        log(f"❌ Ensemble 모델 로드 실패: {e}")
+        log(f"❌ 통합 검사기 로드 실패: {e}")
         return None, str(e)
 
 
@@ -114,7 +114,7 @@ def render():
 def _render_images(ct_image, rgb_image, analysis_mode):
     """업로드된 이미지 표시"""
 
-    if analysis_mode == 'ensemble':
+    if analysis_mode == 'inspector':
         # 2컬럼: CT | RGB
         col1, col2 = st.columns(2)
 
@@ -179,8 +179,8 @@ def _run_analysis(ct_image, rgb_image, analysis_mode):
 
     with status_container:
         # 모드별 안내 메시지
-        if analysis_mode == 'ensemble':
-            mode_msg = "🔗 앙상블 분석 - CT (내부) + RGB (외부) 종합 판정"
+        if analysis_mode == 'inspector':
+            mode_msg = "🔗 통합 검사 - CT (내부) + RGB (외부) 종합 판정"
         elif analysis_mode == 'ct_only':
             mode_msg = "🔬 CT 분석 - 내부 결함 검사"
         else:
@@ -206,7 +206,7 @@ def _run_analysis(ct_image, rgb_image, analysis_mode):
 
             # 3개 모델 분석
             models = [
-                ('ensemble', 'Ensemble System', '앙상블 (CNN + AE)'),
+                ('inspector', 'Battery Inspector', '통합 검사 (CNN + AE)'),
                 ('vlm', 'VLM System', 'VLM (Qwen2-VL)'),
                 ('vlg', 'VLG System', 'VLG (GroundingDINO)'),
             ]
@@ -255,13 +255,13 @@ def _run_inference(model_id: str, ct_path: str, rgb_path: str, analysis_mode: st
         model_id: 모델 ID (ensemble, vlm, vlg)
         ct_path: CT 이미지 임시 파일 경로
         rgb_path: RGB 이미지 임시 파일 경로
-        analysis_mode: 분석 모드 (ensemble, ct_only, rgb_only)
+        analysis_mode: 분석 모드 (inspector, ct_only, rgb_only)
 
     Returns:
         AnalysisResult
     """
-    if model_id == 'ensemble':
-        return _run_ensemble_inference(ct_path, rgb_path, analysis_mode)
+    if model_id == 'inspector':
+        return _run_inspector_inference(ct_path, rgb_path, analysis_mode)
 
     elif model_id == 'vlm':
         return _run_vlm_inference(ct_path, rgb_path, analysis_mode)
@@ -276,23 +276,23 @@ def _run_inference(model_id: str, ct_path: str, rgb_path: str, analysis_mode: st
     )
 
 
-def _run_ensemble_inference(ct_path: str, rgb_path: str, analysis_mode: str) -> AnalysisResult:
+def _run_inspector_inference(ct_path: str, rgb_path: str, analysis_mode: str) -> AnalysisResult:
     """
-    앙상블 추론 (CT CNN + RGB AE) - 실제 모델 사용
+    통합 검사 추론 (CT CNN + RGB AE) - 실제 모델 사용
     """
     import time
     start_time = time.time()
 
-    log("🔵 Ensemble 추론 시작...")
+    log("🔵 통합 검사 추론 시작...")
 
     # 모델 로드
-    ensemble, error = load_ensemble_model()
+    ensemble, error = load_inspector()
 
     if error:
         # 모델 로드 실패 시 에러 결과 반환
-        log(f"❌ Ensemble 모델 사용 불가: {error}")
+        log(f"❌ 통합 검사기 사용 불가: {error}")
         return AnalysisResult(
-            model_name='Ensemble System',
+            model_name='Battery Inspector',
             prediction='error',
             confidence=0.0,
             defect_type=None,
@@ -304,14 +304,14 @@ def _run_ensemble_inference(ct_path: str, rgb_path: str, analysis_mode: str) -> 
         # 분석 모드에 따른 추론 (시각화 포함)
         visualizations = None
 
-        if analysis_mode == 'ensemble' and ct_path and rgb_path:
-            # 앙상블: Grad-CAM + Error Map 포함
-            result = ensemble.predict_with_visualization(ct_path, rgb_path)
+        if analysis_mode == 'inspector' and ct_path and rgb_path:
+            # 통합 검사: Grad-CAM + Error Map 포함
+            result = inspector.predict_with_visualization(ct_path, rgb_path)
             visualizations = result.get('visualizations')
         elif analysis_mode == 'ct_only' and ct_path:
             # CT only: Grad-CAM 포함
-            ct_result_with_gradcam = ensemble.ct_predictor.predict_with_gradcam(ct_path)
-            result = ensemble.predict_ct_only(ct_path)
+            ct_result_with_gradcam = inspector.ct_predictor.predict_with_gradcam(ct_path)
+            result = inspector.predict_ct_only(ct_path)
             result['ct_result'] = ct_result_with_gradcam
             visualizations = {
                 'ct_gradcam_overlay': ct_result_with_gradcam['gradcam']['overlay'],
@@ -320,8 +320,8 @@ def _run_ensemble_inference(ct_path: str, rgb_path: str, analysis_mode: str) -> 
             }
         elif analysis_mode == 'rgb_only' and rgb_path:
             # RGB only: Error Map 포함
-            result = ensemble.predict_rgb_only(rgb_path)
-            rgb_original, rgb_reconstructed, rgb_error_map = ensemble.get_rgb_reconstruction(rgb_path)
+            result = inspector.predict_rgb_only(rgb_path)
+            rgb_original, rgb_reconstructed, rgb_error_map = inspector.get_rgb_reconstruction(rgb_path)
             visualizations = {
                 'rgb_original': rgb_original,
                 'rgb_reconstructed': rgb_reconstructed,
@@ -330,7 +330,7 @@ def _run_ensemble_inference(ct_path: str, rgb_path: str, analysis_mode: str) -> 
         else:
             # 이미지가 없는 경우
             return AnalysisResult(
-                model_name='Ensemble System',
+                model_name='Battery Inspector',
                 prediction='error',
                 confidence=0.0,
                 details={'error': '이미지가 없습니다.', 'mode': analysis_mode},
@@ -354,9 +354,9 @@ def _run_ensemble_inference(ct_path: str, rgb_path: str, analysis_mode: str) -> 
             else:
                 defect_type = "외관이상 (오염/손상)"
 
-        log(f"✅ Ensemble 추론 완료: {verdict} (신뢰도: {confidence:.1%})")
+        log(f"✅ 통합 검사 추론 완료: {verdict} (신뢰도: {confidence:.1%})")
         return AnalysisResult(
-            model_name='Ensemble System',
+            model_name='Battery Inspector',
             prediction=verdict_en,
             confidence=confidence,
             defect_type=defect_type,
@@ -372,9 +372,9 @@ def _run_ensemble_inference(ct_path: str, rgb_path: str, analysis_mode: str) -> 
         )
 
     except Exception as e:
-        log(f"❌ Ensemble 추론 오류: {e}")
+        log(f"❌ 통합 검사 추론 오류: {e}")
         return AnalysisResult(
-            model_name='Ensemble System',
+            model_name='Battery Inspector',
             prediction='error',
             confidence=0.0,
             details={'error': str(e), 'mode': analysis_mode},

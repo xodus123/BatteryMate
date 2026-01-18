@@ -1,11 +1,4 @@
 """ResNet18 + CBAM 모델 정의 (비교 실험용, 미채택)
-
-성능 비교 결과:
-- ResNet18 (기본): 99.2% Accuracy, 98.8% F1-Score
-- ResNet18 + CBAM: 98.5% Accuracy, 97.9% F1-Score
-
-결론: CBAM 추가 시 오히려 성능 하락 (과적합, 모델 복잡도 증가)
-      기본 ResNet18 채택
 """
 import torch
 import torch.nn as nn
@@ -63,10 +56,9 @@ class CBAM(nn.Module):
 
 class ResNet18CBAM(nn.Module):
     """
-    ResNet18 + CBAM Attention 모델 (비교 실험용)
+    ResNet18 + CBAM Attention 모델
     - layer3, layer4 뒤에 CBAM 추가
-    - 작은 결함(기공) 탐지 성능 향상 목적으로 실험
-    - 결과: 성능 하락으로 미채택
+    - Spatial/Channel Attention으로 중요 영역 강조
     """
 
     def __init__(self, num_classes: int = 5, pretrained: bool = True, dropout: float = 0.3):

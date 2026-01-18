@@ -1,5 +1,5 @@
-# 앙상블 설정 파일
-# CT CNN (내부 결함) + RGB AutoEncoder (외부 결함)
+# 통합 검사기 설정 파일
+# CT CNN (내부 결함) + RGB AutoEncoder (외부 결함) 논리 결합
 
 # ============================================================
 # 클래스 정의
@@ -15,9 +15,9 @@ classes:
     num_classes: 2  # 이상탐지이므로 binary
 
 # ============================================================
-# 앙상블 판정 로직
+# 통합 검사 판정 로직
 # ============================================================
-ensemble:
+inspector:
   # 최종 판정 결과
   # - "정상": CT 정상 AND RGB 정상
   # - "내부불량": CT 불량 (porosity/resin_overflow)
@@ -60,7 +60,7 @@ gradcam:
 # 로그 설정
 # ============================================================
 logging:
-  log_dir: "models/ensemble/logs"
+  log_dir: "models/inspector/logs"
   save_visualizations: true
 
 seed: 42

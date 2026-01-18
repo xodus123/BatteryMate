@@ -1,4 +1,4 @@
-"""앙상블 Predictor - CT CNN + RGB AutoEncoder 결합"""
+"""배터리 통합 검사기 - CT CNN + RGB AutoEncoder 논리 결합"""
 
 import sys
 from pathlib import Path
@@ -13,14 +13,14 @@ from pathlib import Path
 from typing import Dict, Tuple, Optional
 import numpy as np
 
-from models.ensemble.predictor import CTCNNPredictor, RGBAEPredictor
+from models.inspector.predictor import CTCNNPredictor, RGBAEPredictor
 
 
-class EnsemblePredictor:
+class BatteryInspector:
     """
-    CT CNN + RGB AutoEncoder 앙상블
+    배터리 통합 검사기 - CT CNN + RGB AutoEncoder 논리 결합
 
-    최종 판정:
+    판정 로직:
     - "정상": CT 정상 AND RGB 정상
     - "내부불량": CT 불량 (porosity/resin_overflow)
     - "외부불량": RGB 불량 (오염/손상)
@@ -40,7 +40,7 @@ class EnsemblePredictor:
         ct_config: str = 'cnn_ct_unified',
         ae_config: str = 'autoencoder_rgb',
         ae_threshold_path: Optional[str] = None,
-        ensemble_config_path: Optional[str] = None
+        inspector_config_path: Optional[str] = None
     ):
         """
         Args:
@@ -49,48 +49,42 @@ class EnsemblePredictor:
             ct_config: CT CNN config 이름
             ae_config: RGB AE config 이름
             ae_threshold_path: AE threshold.json 경로
-            ensemble_config_path: 앙상블 config 경로 (optional)
+            inspector_config_path: 검사기 config 경로 (optional)
         """
         # 개별 모델 로드
         print("=" * 60)
-        print("앙상블 모델 초기화")
+        print("배터리 통합 검사기 초기화")
         print("=" * 60)
 
         self.ct_predictor = CTCNNPredictor(ct_checkpoint, ct_config)
         self.ae_predictor = RGBAEPredictor(ae_checkpoint, ae_config, ae_threshold_path)
 
-        # 앙상블 설정 로드
-        self.ensemble_config = self._load_ensemble_config(ensemble_config_path)
+        # 검사기 설정 로드
+        self.inspector_config = self._load_inspector_config(inspector_config_path)
 
         print("=" * 60)
-        print("앙상블 모델 초기화 완료")
+        print("배터리 통합 검사기 초기화 완료")
         print("=" * 60)
 
-    def _load_ensemble_config(self, config_path: Optional[str]) -> dict:
-        """앙상블 설정 로드"""
+    def _load_inspector_config(self, config_path: Optional[str]) -> dict:
+        """검사기 설정 로드"""
         default_config = {
             'ct_defect_classes': [1, 3, 4],  # cell_porosity, module_porosity, module_resin_overflow
             'ct_normal_classes': [0, 2],     # cell_normal, module_normal
             'rgb_threshold_multiplier': 1.0,
-            'weighted_average': {
-                'enabled': False,
-                'w_ct': 0.6,
-                'w_rgb': 0.4,
-                'threshold': 0.5
-            }
         }
 
         if config_path and Path(config_path).exists():
             with open(config_path, 'r') as f:
                 config = yaml.safe_load(f)
-                if 'ensemble' in config:
-                    default_config.update(config['ensemble'])
+                if 'inspector' in config:
+                    default_config.update(config['inspector'])
 
         return default_config
 
     def predict(self, ct_image_path: str, rgb_image_path: str) -> Dict:
         """
-        앙상블 예측
+        통합 검사 예측
 
         Args:
             ct_image_path: CT 이미지 경로
@@ -124,7 +118,7 @@ class EnsemblePredictor:
 
     def _combine_results(self, ct_result: Dict, rgb_result: Dict) -> Tuple[str, str, float, Dict]:
         """
-        CT와 RGB 결과 결합
+        CT와 RGB 결과 논리 결합
 
         Returns:
             (verdict_kr, verdict_en, confidence, details)
@@ -233,7 +227,7 @@ class EnsemblePredictor:
         gradcam_alpha: float = 0.4
     ) -> Dict:
         """
-        시각화 포함 앙상블 예측
+        시각화 포함 통합 검사 예측
 
         Args:
             ct_image_path: CT 이미지 경로
@@ -295,19 +289,19 @@ class EnsemblePredictor:
         }
 
 
-def create_ensemble(
+def create_inspector(
     ct_checkpoint: Optional[str] = None,
     ae_checkpoint: Optional[str] = None,
-    ensemble_config: str = "training/configs/ensemble.yaml"
-) -> EnsemblePredictor:
+    inspector_config: str = "training/configs/inspector.yaml"
+) -> BatteryInspector:
     """
-    앙상블 모델 생성 헬퍼 함수
+    배터리 통합 검사기 생성 헬퍼 함수
 
     체크포인트 경로가 None이면 자동으로 최신 체크포인트 탐색
     """
-    # CT 체크포인트 - 기본 ResNet18 사용 (CBAM은 성능 하락으로 제외)
+    # CT 체크포인트 - 기본 ResNet18 사용
     if ct_checkpoint is None:
-        # 기본 ResNet18 모델 (CBAM 아닌 것)
+        # 기본 ResNet18 모델
         ct_checkpoint = "models/ct_cnn/checkpoints/ct_unified_best_20260105_140553.pt"
         if not Path(ct_checkpoint).exists():
             ct_dir = Path("models/ct_cnn/checkpoints")
@@ -330,11 +324,11 @@ def create_ensemble(
     ae_threshold = Path("models/rgb_ae/checkpoints/threshold.json")
     ae_threshold_path = str(ae_threshold) if ae_threshold.exists() else None
 
-    return EnsemblePredictor(
+    return BatteryInspector(
         ct_checkpoint=ct_checkpoint,
         ae_checkpoint=ae_checkpoint,
         ae_threshold_path=ae_threshold_path,
-        ensemble_config_path=ensemble_config
+        inspector_config_path=inspector_config
     )
 
 
@@ -342,7 +336,7 @@ def create_ensemble(
 if __name__ == "__main__":
     from pathlib import Path
 
-    print("앙상블 테스트")
+    print("배터리 통합 검사기 테스트")
     print("=" * 60)
 
     # 체크포인트 확인
@@ -355,17 +349,14 @@ if __name__ == "__main__":
         print(f"CT Checkpoint: {ct_checkpoint}")
         print(f"AE Checkpoint: {ae_checkpoint}")
 
-        # 앙상블 생성
-        ensemble = EnsemblePredictor(
+        # 검사기 생성
+        inspector = BatteryInspector(
             ct_checkpoint=ct_checkpoint,
             ae_checkpoint=ae_checkpoint
         )
 
-        print("\n앙상블 모델 로드 성공!")
+        print("\n배터리 통합 검사기 로드 성공!")
 
-        # 샘플 이미지로 테스트 (이미지가 있을 경우)
-        # result = ensemble.predict("test_ct.png", "test_rgb.png")
-        # print(result)
     else:
         print("체크포인트 파일이 없어 테스트 스킵")
         print(f"CT exists: {Path(ct_checkpoint).exists()}")

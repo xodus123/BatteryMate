@@ -50,14 +50,18 @@ model:
 # ============================================================
 data:
   # Split 파일 경로 (불량 학습용 - backup에서 복원)
-  train_split: training/data/splits/rgb/backup_defect_training/train.txt   # 불량만
-  val_split: training/data/splits/rgb/backup_defect_training/val.txt
-  test_split: training/data/splits/rgb/backup_defect_training/test.txt
+  train_split: training/data/splits/rgb/backup_defect_training/preprocessed_train.txt
+  val_split: training/data/splits/rgb/backup_defect_training/preprocessed_val.txt
+  test_split: training/data/splits/rgb/backup_defect_training/preprocessed_test.txt
 
   # 이미지 설정
-  image_size: 512
-  batch_size: 32
+  image_size: 1024
+  batch_size: 16
   num_workers: 8
+
+  # 전처리 옵션
+  preprocessed: true          # 사전 전처리된 데이터 사용 (Resize 제외)
+  use_albumentations: true    # Albumentations 사용 (CLAHE, Sharpen 등)
 
   # 데이터 증강 (학습 시에만)
   augmentation:

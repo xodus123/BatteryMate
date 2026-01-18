@@ -9,7 +9,7 @@
 2. RGB: 3클래스 AE용
    - normal, pollution, mixed
 
-3. 앙상블용: CT-RGB 겹치는 배터리만 추출
+3. 통합 검사용: CT-RGB 겹치는 배터리만 추출
 
 사용법:
     python scripts/create_splits_final.py
@@ -380,7 +380,7 @@ def main():
     seed = 42
 
     print("=" * 60)
-    print("최종 데이터 분할 (CT 통합 + RGB + 앙상블)")
+    print("최종 데이터 분할 (CT 통합 + RGB + 통합 검사)")
     print("=" * 60)
     print()
 
@@ -406,7 +406,7 @@ def main():
 
     # ========== 겹치는 배터리 확인 ==========
     ct_rgb_overlap = ct_all_ids & rgb_ids
-    print(f"\n  CT ∩ RGB 겹침: {len(ct_rgb_overlap)}개 배터리 (앙상블 가능)")
+    print(f"\n  CT ∩ RGB 겹침: {len(ct_rgb_overlap)}개 배터리 (통합 검사 가능)")
 
     # ========== CT 통합 분할 ==========
     print()
@@ -486,10 +486,10 @@ def main():
     print("  [Test: 정상+불량]")
     save_split_file(rgb_test, output_base / 'rgb/test.txt', rgb_classes)
 
-    # ========== 앙상블용 분할 ==========
+    # ========== 통합 검사용 분할 ==========
     print()
     print("=" * 60)
-    print("📊 앙상블용 분할 (CT ∩ RGB 겹치는 배터리)")
+    print("📊 통합 검사용 분할 (CT ∩ RGB 겹치는 배터리)")
     print("=" * 60)
 
     # 겹치는 배터리만 사용
@@ -501,31 +501,31 @@ def main():
     n_train = int(n * 0.7)
     n_val = int(n * 0.15)
 
-    ensemble_train_ids = overlap_list[:n_train]
-    ensemble_val_ids = overlap_list[n_train:n_train + n_val]
-    ensemble_test_ids = overlap_list[n_train + n_val:]
+    inspector_train_ids = overlap_list[:n_train]
+    inspector_val_ids = overlap_list[n_train:n_train + n_val]
+    inspector_test_ids = overlap_list[n_train + n_val:]
 
-    print(f"  앙상블 배터리: {n}개 → Train {len(ensemble_train_ids)}, Val {len(ensemble_val_ids)}, Test {len(ensemble_test_ids)}")
+    print(f"  통합 검사 배터리: {n}개 → Train {len(inspector_train_ids)}, Val {len(inspector_val_ids)}, Test {len(inspector_test_ids)}")
 
     # CT 부분
-    ensemble_ct_train = process_ct_split(cell_data, module_data, ensemble_train_ids, ct_classes)
-    ensemble_ct_val = process_ct_split(cell_data, module_data, ensemble_val_ids, ct_classes)
-    ensemble_ct_test = process_ct_split(cell_data, module_data, ensemble_test_ids, ct_classes)
+    inspector_ct_train = process_ct_split(cell_data, module_data, inspector_train_ids, ct_classes)
+    inspector_ct_val = process_ct_split(cell_data, module_data, inspector_val_ids, ct_classes)
+    inspector_ct_test = process_ct_split(cell_data, module_data, inspector_test_ids, ct_classes)
 
-    print("\n  앙상블 CT Split 저장:")
-    save_split_file(ensemble_ct_train, output_base / 'ensemble/ct_train.txt', ct_classes)
-    save_split_file(ensemble_ct_val, output_base / 'ensemble/ct_val.txt', ct_classes)
-    save_split_file(ensemble_ct_test, output_base / 'ensemble/ct_test.txt', ct_classes)
+    print("\n  통합 검사 CT Split 저장:")
+    save_split_file(inspector_ct_train, output_base / 'inspector/ct_train.txt', ct_classes)
+    save_split_file(inspector_ct_val, output_base / 'inspector/ct_val.txt', ct_classes)
+    save_split_file(inspector_ct_test, output_base / 'inspector/ct_test.txt', ct_classes)
 
     # RGB 부분
-    ensemble_rgb_train = process_rgb_split(rgb_data, ensemble_train_ids, rgb_classes, defect_only=True)
-    ensemble_rgb_val = process_rgb_split(rgb_data, ensemble_val_ids, rgb_classes, defect_only=False)
-    ensemble_rgb_test = process_rgb_split(rgb_data, ensemble_test_ids, rgb_classes, defect_only=False)
+    inspector_rgb_train = process_rgb_split(rgb_data, inspector_train_ids, rgb_classes, defect_only=True)
+    inspector_rgb_val = process_rgb_split(rgb_data, inspector_val_ids, rgb_classes, defect_only=False)
+    inspector_rgb_test = process_rgb_split(rgb_data, inspector_test_ids, rgb_classes, defect_only=False)
 
-    print("\n  앙상블 RGB Split 저장:")
-    save_split_file(ensemble_rgb_train, output_base / 'ensemble/rgb_train.txt', rgb_classes)
-    save_split_file(ensemble_rgb_val, output_base / 'ensemble/rgb_val.txt', rgb_classes)
-    save_split_file(ensemble_rgb_test, output_base / 'ensemble/rgb_test.txt', rgb_classes)
+    print("\n  통합 검사 RGB Split 저장:")
+    save_split_file(inspector_rgb_train, output_base / 'inspector/rgb_train.txt', rgb_classes)
+    save_split_file(inspector_rgb_val, output_base / 'inspector/rgb_val.txt', rgb_classes)
+    save_split_file(inspector_rgb_test, output_base / 'inspector/rgb_test.txt', rgb_classes)
 
     # ========== 요약 ==========
     print()
@@ -545,22 +545,22 @@ def main():
     print(f"  Val:   {len(rgb_val):,}개")
     print(f"  Test:  {len(rgb_test):,}개")
 
-    print(f"\n[앙상블] ({len(ct_rgb_overlap)}개 배터리)")
-    print(f"  CT Train: {len(ensemble_ct_train):,}개, RGB Train: {len(ensemble_rgb_train):,}개")
-    print(f"  CT Val:   {len(ensemble_ct_val):,}개, RGB Val:   {len(ensemble_rgb_val):,}개")
-    print(f"  CT Test:  {len(ensemble_ct_test):,}개, RGB Test:  {len(ensemble_rgb_test):,}개")
+    print(f"\n[통합 검사] ({len(ct_rgb_overlap)}개 배터리)")
+    print(f"  CT Train: {len(inspector_ct_train):,}개, RGB Train: {len(inspector_rgb_train):,}개")
+    print(f"  CT Val:   {len(inspector_ct_val):,}개, RGB Val:   {len(inspector_rgb_val):,}개")
+    print(f"  CT Test:  {len(inspector_ct_test):,}개, RGB Test:  {len(inspector_rgb_test):,}개")
 
     # 배터리 ID 저장
     with open(output_base / 'ensemble/battery_ids.txt', 'w') as f:
-        f.write("# 앙상블용 배터리 ID (CT ∩ RGB)\n")
-        f.write(f"# Train: {len(ensemble_train_ids)}개\n")
-        for bid in sorted(ensemble_train_ids):
+        f.write("# 통합 검사용 배터리 ID (CT ∩ RGB)\n")
+        f.write(f"# Train: {len(inspector_train_ids)}개\n")
+        for bid in sorted(inspector_train_ids):
             f.write(f"train\t{bid}\n")
-        f.write(f"# Val: {len(ensemble_val_ids)}개\n")
-        for bid in sorted(ensemble_val_ids):
+        f.write(f"# Val: {len(inspector_val_ids)}개\n")
+        for bid in sorted(inspector_val_ids):
             f.write(f"val\t{bid}\n")
-        f.write(f"# Test: {len(ensemble_test_ids)}개\n")
-        for bid in sorted(ensemble_test_ids):
+        f.write(f"# Test: {len(inspector_test_ids)}개\n")
+        for bid in sorted(inspector_test_ids):
             f.write(f"test\t{bid}\n")
 
     print(f"\n  배터리 ID 저장: {output_base / 'ensemble/battery_ids.txt'}")

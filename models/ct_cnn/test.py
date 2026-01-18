@@ -77,7 +77,10 @@ class CNNTester:
             test_split_file=self.config['data']['test_split'],
             batch_size=self.config['data']['batch_size'],
             num_workers=self.config['data']['num_workers'],
-            image_size=self.config['data']['image_size']
+            image_size=self.config['data']['image_size'],
+            modality='ct',
+            preprocessed=self.config['data'].get('preprocessed', False),
+            use_albumentations=self.config['data'].get('use_albumentations', False)
         )
 
         # 결과 저장 디렉토리
