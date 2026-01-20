@@ -29,8 +29,9 @@ classes:
   num_classes: 5
 
   # 클래스 가중치 (역빈도 기반)
+  # cell_porosity 4.0 (WeightedSampler와 함께 사용)
   # resin_overflow가 1.1%로 매우 희소 → 높은 가중치
-  class_weights: [1.0, 3.0, 1.0, 0.9, 25.0]
+  class_weights: [1.0, 4.0, 1.0, 0.9, 25.0]
 
 # ============================================================
 # 모델 설정
@@ -53,7 +54,7 @@ data:
   # 이미지 설정
   image_size: 1024
   batch_size: 16  # 1024 이미지에 맞게 조정
-  num_workers: 16
+  num_workers: 4   # RAM 부족 방지 (1024 이미지 기준)
 
   # 전처리 옵션
   preprocessed: true          # 사전 전처리된 데이터 사용 (Resize 제외)
@@ -64,7 +65,7 @@ data:
     enabled: true
     method: weighted_sampler  # weighted_sampler | oversampling
 
-  # 데이터 증강
+  # 데이터 증강 (cell_porosity 개선을 위해 강화)
   augmentation:
     train:
       - RandomHorizontalFlip:
@@ -72,10 +73,17 @@ data:
       - RandomVerticalFlip:
           p: 0.5
       - RandomRotation:
-          degrees: 15
+          degrees: 30       # 15 → 30 (더 다양한 각도)
       - ColorJitter:
-          brightness: 0.2
-          contrast: 0.2
+          brightness: 0.3   # 0.2 → 0.3
+          contrast: 0.3     # 0.2 → 0.3
+      - RandomAffine:       # 추가: 미세 변형
+          degrees: 0
+          translate: [0.1, 0.1]
+          scale: [0.9, 1.1]
+      - GaussianBlur:       # 추가: 블러 내성
+          kernel_size: 3
+          p: 0.3
     val: []  # Validation은 증강 없음
 
 # ============================================================
@@ -112,14 +120,14 @@ criteria:
   # Focal Loss 옵션 (희소 클래스에 효과적)
   focal_loss:
     enabled: true
-    gamma: 2.0
+    gamma: 3.0  # 2.0 → 3.0 (어려운 샘플에 더 집중)
     alpha: null  # class_weights 사용
 
   # Early Stopping
   early_stopping:
     enabled: true
     monitor: val_f1_macro
-    patience: 10
+    patience: 5   # 10 → 5 (과적합 조기 방지)
     min_delta: 0.001
     mode: max
 

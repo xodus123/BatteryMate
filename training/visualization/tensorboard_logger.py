@@ -370,6 +370,98 @@ class TensorBoardLogger:
         except Exception as e:
             print(f"⚠️ Confidence Histogram 로깅 실패: {e}")
 
+    def log_gradcam(self, epoch: int, images: np.ndarray, heatmaps: np.ndarray,
+                    labels: np.ndarray, preds: np.ndarray, class_names: list,
+                    num_samples: int = 4):
+        """
+        Grad-CAM 시각화 로깅
+
+        Args:
+            epoch: 에폭 번호
+            images: 원본 이미지 배열 (N, H, W, C) - RGB 형식
+            heatmaps: Grad-CAM 히트맵 배열 (N, H, W)
+            labels: 정답 라벨 배열 (N,)
+            preds: 예측 라벨 배열 (N,)
+            class_names: 클래스 이름 리스트
+            num_samples: 로깅할 샘플 수
+        """
+        if self.writer is None:
+            return
+
+        try:
+            import cv2
+
+            # 정답/오답 분리
+            correct_mask = preds == labels
+            incorrect_mask = ~correct_mask
+
+            # 정답 샘플 로깅
+            if correct_mask.sum() > 0:
+                correct_indices = np.where(correct_mask)[0][:num_samples]
+                for i, idx in enumerate(correct_indices):
+                    overlay = self._create_gradcam_overlay(images[idx], heatmaps[idx])
+                    label_name = class_names[labels[idx]]
+                    self.writer.add_image(
+                        f'GradCAM/correct/{label_name}_{i}',
+                        overlay,
+                        epoch,
+                        dataformats='HWC'
+                    )
+
+            # 오답 샘플 로깅 (디버깅에 유용)
+            if incorrect_mask.sum() > 0:
+                incorrect_indices = np.where(incorrect_mask)[0][:num_samples]
+                for i, idx in enumerate(incorrect_indices):
+                    overlay = self._create_gradcam_overlay(images[idx], heatmaps[idx])
+                    true_name = class_names[labels[idx]]
+                    pred_name = class_names[preds[idx]]
+                    self.writer.add_image(
+                        f'GradCAM/incorrect/true_{true_name}_pred_{pred_name}_{i}',
+                        overlay,
+                        epoch,
+                        dataformats='HWC'
+                    )
+
+        except Exception as e:
+            print(f"⚠️ Grad-CAM 로깅 실패: {e}")
+
+    def _create_gradcam_overlay(self, image: np.ndarray, heatmap: np.ndarray, alpha: float = 0.5) -> np.ndarray:
+        """
+        Grad-CAM 히트맵을 원본 이미지에 오버레이
+
+        Args:
+            image: 원본 이미지 (H, W, C) - 0~255 또는 0~1
+            heatmap: 히트맵 (H, W) - 0~1
+            alpha: 오버레이 투명도
+
+        Returns:
+            오버레이된 이미지 (H, W, 3)
+        """
+        import cv2
+
+        # 이미지 정규화
+        if image.max() <= 1.0:
+            image = (image * 255).astype(np.uint8)
+        else:
+            image = image.astype(np.uint8)
+
+        # 그레이스케일 이미지를 RGB로 변환
+        if len(image.shape) == 2:
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        elif image.shape[2] == 1:
+            image = cv2.cvtColor(image.squeeze(), cv2.COLOR_GRAY2RGB)
+
+        # 히트맵을 컬러맵으로 변환
+        heatmap_resized = cv2.resize(heatmap, (image.shape[1], image.shape[0]))
+        heatmap_uint8 = (heatmap_resized * 255).astype(np.uint8)
+        heatmap_colored = cv2.applyColorMap(heatmap_uint8, cv2.COLORMAP_JET)
+        heatmap_colored = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
+
+        # 오버레이
+        overlay = cv2.addWeighted(image, 1 - alpha, heatmap_colored, alpha, 0)
+
+        return overlay
+
     def close(self):
         """TensorBoard writer 종료"""
         if self.writer:

@@ -22,7 +22,7 @@ import json
 from models.rgb_ae.model import create_model, ConvAutoEncoder
 from training.configs.config_loader import ConfigLoader
 from training.data.dataset import BatteryDataset
-from training.data.transforms import get_transforms, get_albumentations_transforms
+from training.data.transforms import get_transforms, get_albumentations_transforms, build_transforms_from_config
 from training.visualization.tensorboard_logger import TensorBoardLogger
 from sklearn.metrics import roc_curve, roc_auc_score
 
@@ -147,9 +147,16 @@ class AETrainer:
         image_size = data_config['image_size']
         preprocessed = data_config.get('preprocessed', False)
         use_albumentations = data_config.get('use_albumentations', False)
+        augmentation_config = data_config.get('augmentation', None)
 
-        # Transform 선택
-        if use_albumentations:
+        # Transform 선택 (Config 기반 > Albumentations > 기본)
+        if augmentation_config is not None:
+            train_aug = augmentation_config.get('train', [])
+            val_aug = augmentation_config.get('val', [])
+            train_transform = build_transforms_from_config(train_aug, 'rgb', image_size, preprocessed)
+            val_transform = build_transforms_from_config(val_aug, 'rgb', image_size, preprocessed)
+            print(f"   - Augmentation: Config 기반 ({len(train_aug)}개 transform)")
+        elif use_albumentations:
             train_transform = get_albumentations_transforms('rgb', 'train', image_size, preprocessed)
             val_transform = get_albumentations_transforms('rgb', 'val', image_size, preprocessed)
         else:

@@ -73,6 +73,9 @@ class CNNTester:
         self.criterion = nn.CrossEntropyLoss()
 
         # Test DataLoader
+        # Augmentation config 가져오기 (Test는 augmentation 없이 사용)
+        augmentation_config = self.config['data'].get('augmentation', None)
+
         self.test_loader = create_test_dataloader(
             test_split_file=self.config['data']['test_split'],
             batch_size=self.config['data']['batch_size'],
@@ -80,7 +83,8 @@ class CNNTester:
             image_size=self.config['data']['image_size'],
             modality='ct',
             preprocessed=self.config['data'].get('preprocessed', False),
-            use_albumentations=self.config['data'].get('use_albumentations', False)
+            use_albumentations=self.config['data'].get('use_albumentations', False),
+            augmentation_config=augmentation_config
         )
 
         # 결과 저장 디렉토리

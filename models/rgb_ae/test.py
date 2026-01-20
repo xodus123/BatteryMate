@@ -25,7 +25,7 @@ from sklearn.metrics import roc_auc_score, roc_curve, precision_recall_curve, f1
 from models.rgb_ae.model import create_model, ConvAutoEncoder
 from training.configs.config_loader import ConfigLoader
 from training.data.dataset import BatteryDataset
-from training.data.transforms import get_transforms, get_albumentations_transforms
+from training.data.transforms import get_transforms, get_albumentations_transforms, build_transforms_from_config
 
 
 class AETester:
@@ -91,9 +91,13 @@ class AETester:
         image_size = data_config['image_size']
         preprocessed = data_config.get('preprocessed', False)
         use_albumentations = data_config.get('use_albumentations', False)
+        augmentation_config = data_config.get('augmentation', None)
 
-        # Transform 선택
-        if use_albumentations:
+        # Transform 선택 (Test는 augmentation 없이, val 설정 사용)
+        if augmentation_config is not None:
+            val_aug = augmentation_config.get('val', [])
+            transform = build_transforms_from_config(val_aug, 'rgb', image_size, preprocessed)
+        elif use_albumentations:
             transform = get_albumentations_transforms('rgb', 'test', image_size, preprocessed)
         else:
             transform = get_transforms('rgb', 'test', image_size, preprocessed)

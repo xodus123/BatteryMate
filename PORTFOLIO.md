@@ -66,17 +66,15 @@
 
 ### 결과 표시 방식
 
-3개 모델은 **가중 평균(앙상블)하지 않고** 각각 독립적으로 판정한 결과를 나란히 표시합니다.
-사용자가 세 모델의 결과를 비교하여 최종 판단할 수 있습니다.
+3개 모델이 각각 독립적으로 판정한 결과를 나란히 표시합니다.
 
 | 모델 | 역할 | 판정 방식 |
 |------|------|----------|
-| **통합 검사기** | 정량적 분류 | CT+RGB 논리 결합 (내부/외부/복합불량) |
+| **통합 검사기** | 정량적 분류 | CT+RGB 논리적 결합 (내부/외부/복합불량) |
 | **VLM** | 정성적 분석 | 자연어 기반 결함 설명 |
 | **VLG** | 위치 검출 | Bounding Box 시각화 |
 
-> **참고**: "통합 검사기"는 CT CNN과 RGB AE 두 모델의 결과를 논리적으로 결합(AND/OR)하여 판정합니다.
-> 세 시스템(통합 검사기, VLM, VLG)을 다시 합치는 앙상블은 없습니다.
+> **통합 검사기**: CT CNN과 RGB AE 결과를 논리적으로 결합(AND/OR)하여 최종 판정
 
 ---
 
@@ -119,16 +117,49 @@
 #### 아키텍처
 - **Backbone**: ResNet18 (ImageNet Pretrained)
 - **출력**: 5클래스 Softmax
-- **입력 크기**: 512x512
+- **입력 크기**: 1024x1024 (전처리된 고해상도 이미지)
 
 #### 학습 설정
 ```yaml
-optimizer: AdamW
-learning_rate: 0.0001
-weight_decay: 0.01
-scheduler: CosineAnnealingLR
-epochs: 50
-batch_size: 32
+model:
+  backbone: ResNet18 (ImageNet Pretrained)
+  dropout: 0.3
+  num_classes: 5
+
+data:
+  image_size: 1024          # 512 → 1024 (고해상도로 미세 결함 보존)
+  batch_size: 16
+  num_workers: 4            # RAM OOM 방지
+
+optimizer:
+  name: AdamW
+  learning_rate: 0.0001
+  weight_decay: 0.01
+
+scheduler:
+  name: CosineAnnealingWarmRestarts
+  T_0: 10
+  T_mult: 2
+  eta_min: 1e-6
+
+loss:
+  name: Focal Loss          # CrossEntropy → Focal Loss (클래스 불균형 대응)
+  gamma: 3.0                # 어려운 샘플에 집중
+  label_smoothing: 0.1      # 과신 방지, 일반화 향상
+  class_weights: [1.0, 4.0, 1.0, 0.9, 25.0]  # 희소 클래스 가중치
+
+class_balancing:
+  method: WeightedRandomSampler  # 희소 클래스 오버샘플링
+
+early_stopping:
+  monitor: val_f1_macro
+  patience: 5               # 과적합 조기 방지
+  min_delta: 0.001
+
+training:
+  epochs: 50
+  amp: true                 # Mixed Precision
+  gradient_clip: 1.0
 ```
 
 #### 성능
@@ -137,6 +168,116 @@ batch_size: 32
 | Accuracy | 83.1% | **77.4%** |
 | Macro F1-Score | 83.4% | **78.8%** |
 | ROC-AUC | - | 0.9534 |
+
+#### 클래스 불균형 문제 및 해결
+
+**문제 분석:**
+```
+클래스 분포 (Train 기준):
+├── cell_normal:           39,343 (28.4%)
+├── cell_porosity:         12,755 (9.2%)   ← 희소
+├── module_normal:         39,572 (28.6%)
+├── module_porosity:       45,165 (32.7%)
+└── module_resin_overflow:  1,481 (1.1%)   ← 매우 희소
+
+문제점:
+- resin_overflow가 전체의 1.1%로 극심한 불균형
+- cell_porosity도 9.2%로 상대적 희소
+- 다수 클래스(normal, module_porosity)가 학습 지배
+```
+
+**해결 방법 1: Focal Loss (CrossEntropy 대체)**
+
+| 손실 함수 | 수식 | 특징 |
+|----------|------|------|
+| CrossEntropy | CE = -log(p_t) | 모든 샘플 동등 취급 |
+| **Focal Loss** | FL = -(1-p_t)^γ × log(p_t) | 어려운 샘플에 집중 |
+
+```
+Focal Loss 효과:
+- γ(gamma) = 3.0 설정
+- 쉬운 샘플 (p_t ≈ 1.0): 가중치 ↓↓ (거의 0)
+- 어려운 샘플 (p_t ≈ 0.3): 가중치 ↑ (집중 학습)
+- 결과: 희소 클래스/혼동 샘플에 더 집중
+```
+
+**해결 방법 2: Class Weights**
+```python
+class_weights = [1.0, 4.0, 1.0, 0.9, 25.0]
+#                 ↑    ↑    ↑    ↑    ↑
+#              cell  cell  mod  mod  resin
+#              norm  poro  norm poro overflow
+```
+- resin_overflow: 25배 가중치 (1.1% → 실질적으로 27.5% 효과)
+- cell_porosity: 4배 가중치 (9.2% → 실질적으로 36.8% 효과)
+
+**해결 방법 3: WeightedRandomSampler**
+```
+동작 원리:
+- 각 샘플에 클래스 빈도의 역수를 가중치로 부여
+- 희소 클래스 샘플이 더 자주 선택됨
+- 한 epoch 내에서 클래스 분포가 균등해짐
+
+효과:
+- resin_overflow: 1.1% → ~20% (약 18배 증가)
+- cell_porosity: 9.2% → ~20% (약 2배 증가)
+```
+
+**해결 방법 4: Label Smoothing**
+```
+기존: [0, 0, 1, 0, 0] (정답 클래스만 1.0)
+적용: [0.025, 0.025, 0.9, 0.025, 0.025] (정답 0.9, 나머지 균등)
+
+효과:
+- 모델의 과신(overconfidence) 방지
+- 일반화 성능 향상
+- 희소 클래스 예측 시 안정성 증가
+```
+
+**종합 효과:**
+| 방법 | 역할 |
+|------|------|
+| Focal Loss | 어려운 샘플에 집중 |
+| Class Weights | 손실 함수에서 희소 클래스 중요도 ↑ |
+| WeightedRandomSampler | 데이터 레벨에서 균형 맞춤 |
+| Label Smoothing | 일반화 향상, 과신 방지 |
+
+#### 데이터 전처리 및 증강
+
+**전처리 파이프라인:**
+```
+원본 이미지 (4000×4000)
+       ↓
+   Resize (1024×1024)     ← 사전 전처리 (PNG 저장)
+       ↓
+   Data Augmentation      ← 학습 시 동적 적용
+       ↓
+   ToTensor + Normalize
+       ↓
+   모델 입력
+```
+
+**데이터 증강 (Config 기반 동적 적용):**
+```yaml
+augmentation:
+  train:
+    - RandomHorizontalFlip: {p: 0.5}
+    - RandomVerticalFlip: {p: 0.5}
+    - RandomRotation: {degrees: 30}
+    - ColorJitter: {brightness: 0.3, contrast: 0.3}
+    - RandomAffine: {translate: [0.1, 0.1], scale: [0.9, 1.1]}
+    - GaussianBlur: {kernel_size: 3, p: 0.3}
+  val: []  # Validation/Test는 증강 없음
+```
+
+**증강 효과:**
+| 증강 기법 | 목적 |
+|----------|------|
+| Flip (H/V) | 방향 불변성 학습 |
+| Rotation | 회전 불변성 학습 |
+| ColorJitter | 조명 변화 대응 |
+| RandomAffine | 위치/크기 변화 대응 |
+| GaussianBlur | 블러 내성, 노이즈 대응 |
 
 #### 시각화
 - **Grad-CAM**: 결함 위치 히트맵 생성
@@ -291,7 +432,7 @@ models/ct_cnn/checkpoints/
 Encoder: [3, 64, 128, 256, 512] → Latent (32x32x512)
 Decoder: [512, 256, 128, 64, 3] → Reconstructed Image
 
-입력: 512x512x3 RGB
+입력: 512x512x3 RGB (또는 1024x1024 전처리 이미지)
 Latent Dimension: 1024
 ```
 
@@ -672,7 +813,7 @@ streamlit run webapp/app.py --server.port 8501
 | 3 | **Qwen2-VL-2B** | ❌ 내부불량 80% | ~25초 | **YOLO-World** | ❌ 정상 0% (0개) | ~2초 |
 | 4 | **Gemini 2.0 Flash** | ✅ 외부불량 95% | ~5초 | **YOLO-World** | ❌ 정상 0% (0개) | ~2초 |
 
-**Ensemble 결과**: 모든 테스트에서 일관되게 **외부불량 94.2%** (정확)
+**통합 검사기 결과**: 모든 테스트에서 일관되게 **외부불량 94.2%** (정확)
 
 #### 상세 로그 분석
 
@@ -950,9 +1091,9 @@ streamlit run webapp/app.py --server.port 8501
 단일 모델로는 품질 검사의 모든 요구사항을 충족할 수 없습니다.
 
 ```
-Ensemble → 신뢰할 수 있는 최종 판정
-VLM      → 사람이 이해할 수 있는 설명
-VLG      → 시각적 근거 제시
+통합 검사기 → 신뢰할 수 있는 최종 판정 (CT+RGB 논리 결합)
+VLM        → 사람이 이해할 수 있는 설명
+VLG        → 시각적 근거 제시
 ```
 
 **3-Way 검사 시스템의 가치:**
@@ -1134,4 +1275,4 @@ battery-inspection/
 
 ---
 
-*Last Updated: 2026-01-08*
+*Last Updated: 2026-01-20*

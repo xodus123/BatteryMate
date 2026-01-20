@@ -1,4 +1,4 @@
-ㅇ"""RGB AutoEncoder 모델 정의 - 외부 결함 이상 탐지"""
+"""RGB AutoEncoder 모델 정의 - 외부 결함 이상 탐지"""
 import torch
 import torch.nn as nn
 from typing import Tuple, Dict, Any
