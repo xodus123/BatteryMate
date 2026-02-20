@@ -1,30 +1,19 @@
 {
-  "checkpoint": "models/rgb_ae/checkpoints/rgb_ae_best_20260107_123958.pt",
+  "checkpoint": "models/rgb_ae/checkpoints/rgb_ae_best_20260210_131906.pt",
   "metrics": {
     "num_samples": 26749,
     "num_normal": 1505,
     "num_defect": 25244,
-    "score_mean": 1.9851405620574951,
-    "score_std": 0.29524147510528564,
-    "normal_score_mean": 1.0584628582000732,
-    "normal_score_std": 0.4500772953033447,
-    "defect_score_mean": 2.0403873920440674,
-    "defect_score_std": 0.16136696934700012,
-    "roc_auc": 0.9091036664875071,
-    "accuracy": 0.9885229354368388,
-    "f1": 0.9939508581111702,
-    "optimal_threshold": 1.212615966796875
+    "score_mean": 1.8700913190841675,
+    "score_std": 0.18914198875427246,
+    "normal_score_mean": 1.2536512613296509,
+    "normal_score_std": 0.2884088158607483,
+    "defect_score_mean": 1.9068423509597778,
+    "defect_score_std": 0.09456779062747955,
+    "roc_auc": 0.9095231207863083,
+    "optimal_threshold": 1.3877809047698975
   },
-  "confusion_matrix": [
-    [
-      1220,
-      285
-    ],
-    [
-      22,
-      25222
-    ]
-  ],
-  "threshold": 1.1552659273147583,
-  "timestamp": "2026-01-07T16:40:46.745488"
+  "note": "accuracy/f1/confusion_matrix는 NaN threshold 버그로 인해 잘못 기록되어 제거. test.py의 NaN 처리 수정 완료 (2026-02-20). optimal_threshold(1.3878) 기반 재평가 필요.",
+  "threshold_bug": "체크포인트에 threshold=NaN 저장 → 모든 샘플 normal 예측 → accuracy 5.6%, f1 0.0으로 잘못 기록됨",
+  "timestamp": "2026-02-10T14:39:08.388266"
 }

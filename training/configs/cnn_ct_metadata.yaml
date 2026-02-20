@@ -1,0 +1,146 @@
+# CT CNN + Metadata Fusion Config
+#
+# ResNet18 + JSON 메타데이터 결합
+# - 이미지 특징 (ResNet18: 512차원)
+# - 메타데이터 특징 (1차원 → 128차원)
+#   - battery_type (0=cell, 1=module)
+
+# ============================================================
+# 클래스 정의
+# ============================================================
+classes:
+  names:
+    - cell_normal
+    - cell_porosity
+    - module_normal
+    - module_porosity
+    - module_resin_overflow
+  num_classes: 5
+  class_weights: [2.0, 3.0, 2.5, 0.5, 10.0]
+
+# ============================================================
+# 모델 설정
+# ============================================================
+model:
+  name: resnet18_metadata
+  pretrained: true
+  num_classes: 5
+  dropout: 0.3
+  # Metadata Fusion 하이퍼파라미터 (메타데이터 의존도 감소)
+  metadata_hidden_dim: 32
+  metadata_output_dim: 32
+  metadata_dropout: 0.5
+  fusion_hidden_dim: 256
+
+# ============================================================
+# 데이터 설정
+# ============================================================
+data:
+  # 라벨 JSON 경로 (메타데이터 추출용)
+  label_base: /mnt/d/103.배터리 불량 이미지 데이터/3.개방데이터/1.데이터
+  label_dirs:
+    Training: Training/02.라벨링데이터/TL_CT_Datasets_label
+    Validation: Validation/02.라벨링데이터/VL_CT_Datasets_label
+
+  # Split 파일 경로 (원본 → 512 resize)
+  # 형식: image_path\tlabel
+  train_split: training/data/splits/ct/resize512/battery_train.txt
+  val_split: training/data/splits/ct/resize512/battery_val.txt
+  test_split: training/data/splits/ct/resize512/battery_test.txt
+
+  # 이미지 설정
+  image_size: 512
+  batch_size: 32
+  num_workers: 4
+
+  # 전처리 옵션
+  preprocessed: true
+  use_albumentations: false
+
+  class_balancing:
+    enabled: true
+    method: weighted_sampler
+
+  augmentation:
+    train:
+      - RandomHorizontalFlip:
+          p: 0.5
+      - RandomVerticalFlip:
+          p: 0.5
+      - RandomRotation:
+          degrees: 90
+      - RandomAffine:
+          degrees: 0
+          translate: [0.1, 0.1]
+          scale: [0.9, 1.1]
+    val: []
+
+# ============================================================
+# 학습 설정
+# ============================================================
+training:
+  optimizer: AdamW
+  lr: 0.00005
+  weight_decay: 0.03
+  epochs: 50
+  device: cuda
+
+  scheduler:
+    name: CosineAnnealingWarmRestarts
+    T_0: 10
+    T_mult: 2
+    eta_min: 1e-6
+
+  gradient_clip: 1.0
+  amp: true
+
+# ============================================================
+# 손실 함수 및 평가 기준
+# ============================================================
+criteria:
+  loss: CrossEntropyLoss
+  use_class_weights: true
+  label_smoothing: 0.07
+
+  focal_loss:
+    enabled: true
+    gamma: 2.0
+    alpha: null
+
+  early_stopping:
+    enabled: true
+    monitor: val_f1_macro
+    patience: 5
+    min_delta: 0.001
+    mode: max
+
+# ============================================================
+# 체크포인트 설정
+# ============================================================
+checkpoint:
+  save_dir: models/ct_cnn/checkpoints
+  save_best_by: val_f1_macro
+  save_last: true
+  save_top_k: 3
+
+# ============================================================
+# 로깅 설정
+# ============================================================
+logging:
+  tensorboard:
+    enabled: true
+    log_dir: models/ct_cnn/logs
+    log_confusion_matrix: true
+    log_per_class_metrics: true
+
+  train_log:
+    enabled: true
+    save_path: models/ct_cnn/logs/train_metadata.csv
+
+# ============================================================
+# 실험 메타데이터
+# ============================================================
+experiment:
+  name: ct_metadata_fusion
+  description: "ResNet18 + JSON Metadata Fusion (battery_type only)"
+  seed: 42

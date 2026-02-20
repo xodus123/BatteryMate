@@ -1,0 +1,66 @@
+{
+  "model_type": "qwen3vl",
+  "model_size": "2b",
+  "eval_mode": "sampled_500",
+  "timestamp": "20260219_191109",
+  "num_classes": 3,
+  "class_names": [
+    "normal",
+    "pollution",
+    "damaged"
+  ],
+  "total_samples": 500,
+  "class_counts": {
+    "normal": 167,
+    "pollution": 167,
+    "damaged": 166
+  },
+  "metrics": {
+    "accuracy": 0.426,
+    "f1_macro": 0.33221791307879384,
+    "f1_weighted": 0.3321875132242003,
+    "precision_macro": 0.6880697372844725,
+    "recall_macro": 0.42559459394464083,
+    "roc_auc_ovr": 0.6211767192486478
+  },
+  "per_class_metrics": {
+    "normal": {
+      "f1": 0.5475409836065573,
+      "precision": 0.37697516930022573,
+      "recall": 1.0,
+      "support": 167
+    },
+    "pollution": {
+      "f1": 0.1016949152542373,
+      "precision": 0.9,
+      "recall": 0.05389221556886228,
+      "support": 167
+    },
+    "damaged": {
+      "f1": 0.3474178403755869,
+      "precision": 0.7872340425531915,
+      "recall": 0.22289156626506024,
+      "support": 166
+    }
+  },
+  "confusion_matrix": [
+    [
+      167,
+      0,
+      0
+    ],
+    [
+      148,
+      9,
+      10
+    ],
+    [
+      128,
+      1,
+      37
+    ]
+  ],
+  "parse_failures": 0,
+  "elapsed_seconds": 2077.32026386261,
+  "samples_per_second": 0.24069471072808496
+}

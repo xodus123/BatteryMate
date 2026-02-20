@@ -1,13 +1,20 @@
-"""배터리 결함 분석용 프롬프트 템플릿 - 5클래스 통일"""
+"""배터리 결함 분석용 프롬프트 템플릿 - CT 5클래스 / RGB 3클래스"""
 
 
-# 통일된 5클래스 정의
+# CT 통일된 5클래스 정의
 UNIFIED_CLASSES = [
     'cell_normal',
     'cell_porosity',
     'module_normal',
     'module_porosity',
     'module_resin_overflow',
+]
+
+# RGB 3클래스 정의
+RGB_CLASSES = [
+    'normal',
+    'pollution',
+    'damaged',
 ]
 
 
@@ -80,6 +87,23 @@ IMPORTANT: If no defect is visible, classify as cell_normal or module_normal.
 Answer in JSON format:
 {
     "classification": "one of 5 classes above",
+    "prediction": "normal" or "defect",
+    "confidence": 0-100,
+    "explanation": "brief explanation"
+}"""
+
+    # Zero-shot 분류 프롬프트 (RGB 3클래스)
+    ZERO_SHOT_CLASSIFICATION_RGB = """Analyze this battery exterior image and classify it into ONE of these 3 classes:
+
+1. normal - Normal battery surface (no defect)
+2. pollution - Surface contamination or stain
+3. damaged - Physical damage, mixed defects, or deformation
+
+IMPORTANT: If the surface looks clean with no visible defects, classify as normal.
+
+Answer in JSON format:
+{
+    "classification": "one of 3 classes above",
     "prediction": "normal" or "defect",
     "confidence": 0-100,
     "explanation": "brief explanation"

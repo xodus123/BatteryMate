@@ -1,0 +1,75 @@
+{
+  "timestamp": "2026-02-01T16:32:44.791906",
+  "num_samples": 1000,
+  "ensemble": {
+    "accuracy": 0.92,
+    "f1_macro": 0.6985893522612279,
+    "precision_macro": 0.8143772757002328,
+    "recall_macro": 0.7030862684883896,
+    "f1_per_class": {
+      "cell_normal": 0.7017543859649122,
+      "cell_porosity": 0.7489711934156379,
+      "module_normal": 0.7368421052631579,
+      "module_porosity": 0.9720457433290979,
+      "module_resin_overflow": 0.3333333333333333
+    },
+    "confusion_matrix": [
+      [
+        20,
+        10,
+        1,
+        0,
+        0
+      ],
+      [
+        5,
+        91,
+        12,
+        0,
+        0
+      ],
+      [
+        0,
+        5,
+        42,
+        1,
+        0
+      ],
+      [
+        1,
+        26,
+        11,
+        765,
+        0
+      ],
+      [
+        0,
+        3,
+        0,
+        5,
+        2
+      ]
+    ]
+  },
+  "cnn_only": {
+    "accuracy": 0.92,
+    "f1_macro": 0.6985893522612279,
+    "f1_per_class": {
+      "cell_normal": 0.7017543859649122,
+      "cell_porosity": 0.7489711934156379,
+      "module_normal": 0.7368421052631579,
+      "module_porosity": 0.9720457433290979,
+      "module_resin_overflow": 0.3333333333333333
+    }
+  },
+  "improvement": {
+    "f1_macro": 0.0,
+    "accuracy": 0.0
+  },
+  "agreements": {
+    "both_defect": 154,
+    "both_normal": 62,
+    "cnn_only_defect": 754,
+    "ae_only_anomaly": 30
+  }
+}

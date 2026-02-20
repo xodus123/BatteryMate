@@ -1,0 +1,102 @@
+{
+  "model_type": "qwen3vl",
+  "model_size": "2b",
+  "eval_mode": "sampled_500",
+  "timestamp": "20260219_152042",
+  "num_classes": 5,
+  "class_names": [
+    "cell_normal",
+    "cell_porosity",
+    "module_normal",
+    "module_porosity",
+    "module_resin_overflow"
+  ],
+  "total_samples": 500,
+  "class_counts": {
+    "cell_normal": 100,
+    "cell_porosity": 100,
+    "module_normal": 100,
+    "module_porosity": 100,
+    "module_resin_overflow": 100
+  },
+  "metrics": {
+    "accuracy": 0.208,
+    "f1_macro": 0.08232612918521237,
+    "f1_weighted": 0.08232612918521237,
+    "precision_macro": 0.11362706822829523,
+    "recall_macro": 0.20800000000000002,
+    "roc_auc_ovr": 0.546635
+  },
+  "per_class_metrics": {
+    "cell_normal": {
+      "f1": 0.3395585738539898,
+      "precision": 0.20449897750511248,
+      "recall": 1.0,
+      "support": 100
+    },
+    "cell_porosity": {
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "support": 100
+    },
+    "module_normal": {
+      "f1": 0.07207207207207207,
+      "precision": 0.36363636363636365,
+      "recall": 0.04,
+      "support": 100
+    },
+    "module_porosity": {
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "support": 100
+    },
+    "module_resin_overflow": {
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "support": 100
+    }
+  },
+  "confusion_matrix": [
+    [
+      100,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      100,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      96,
+      0,
+      4,
+      0,
+      0
+    ],
+    [
+      93,
+      0,
+      7,
+      0,
+      0
+    ],
+    [
+      100,
+      0,
+      0,
+      0,
+      0
+    ]
+  ],
+  "parse_failures": 0,
+  "elapsed_seconds": 1090.9202857017517,
+  "samples_per_second": 0.45832863001384844
+}

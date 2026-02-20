@@ -1,0 +1,9 @@
+[
+ {
+  "image_path": "/mnt/d/battery-512/Training/CT_cell_pouch_110_y_692.jpg",
+  "true_label": 0,
+  "pred_label": 0,
+  "confidence": 95.0,
+  "raw_response": "{\n    \"classification\": \"cell_normal\",\n    \"prediction\": \"normal\",\n    \"confidence\": 95,\n    \"explanation\": \"The image shows a single cylindrical battery cell with uniform appearance and no visible defects such as porosity, cracks, or resin overflow. The cell appears intact and properly formed.\"\n}"
+ }
+]

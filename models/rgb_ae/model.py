@@ -50,22 +50,23 @@ class ConvAutoEncoder(nn.Module):
         self.encoded_size = image_size // (2 ** (len(encoder_channels) - 1))
         self.encoded_channels = encoder_channels[-1]
 
-        # Conv Bottleneck (Global Average Pool 방식 - 파라미터 효율적)
-        # 32×32×512 → GAP → 512 → FC → 1024
+        # Conv Bottleneck (공간 정보 일부 유지)
+        # 32×32×512 → 4×4×512 → FC → 1024
+        self.pool_size = 4
         self.bottleneck_encode = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),  # 32×32 → 1×1
+            nn.AdaptiveAvgPool2d(self.pool_size),  # 32×32 → 4×4 (공간 정보 유지)
             nn.Flatten(),
-            nn.Linear(self.encoded_channels, latent_dim),
+            nn.Linear(self.encoded_channels * self.pool_size * self.pool_size, latent_dim),
             nn.ReLU(inplace=True)
         )
 
-        # 1024 → FC → 512 → Reshape → 1×1×512 → Upsample → 32×32×512
+        # 1024 → FC → 8192 → Reshape → 4×4×512 → Upsample → 32×32×512
         self.bottleneck_decode = nn.Sequential(
-            nn.Linear(latent_dim, self.encoded_channels),
+            nn.Linear(latent_dim, self.encoded_channels * self.pool_size * self.pool_size),
             nn.ReLU(inplace=True)
         )
 
-        # Upsample 1×1 → encoded_size×encoded_size
+        # Upsample 4×4 → encoded_size×encoded_size (32×32)
         self.upsample = nn.Upsample(
             size=(self.encoded_size, self.encoded_size),
             mode='bilinear',
@@ -123,8 +124,8 @@ class ConvAutoEncoder(nn.Module):
 
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         """디코딩: latent vector → 이미지"""
-        x = self.bottleneck_decode(z)  # (B, 512)
-        x = x.view(x.size(0), self.encoded_channels, 1, 1)  # (B, 512, 1, 1)
+        x = self.bottleneck_decode(z)  # (B, 8192)
+        x = x.view(x.size(0), self.encoded_channels, self.pool_size, self.pool_size)  # (B, 512, 4, 4)
         x = self.upsample(x)           # (B, 512, 32, 32)
         x = self.decoder(x)            # (B, 3, 512, 512)
         return x
@@ -179,18 +180,70 @@ class ConvAutoEncoder(nn.Module):
 
 
 class SSIMLoss(nn.Module):
-    """SSIM 기반 손실 함수 (선택적)"""
+    """SSIM 기반 손실 함수"""
 
-    def __init__(self, window_size: int = 11, sigma: float = 1.5):
+    def __init__(self, window_size: int = 11, channel: int = 3):
         super(SSIMLoss, self).__init__()
         self.window_size = window_size
-        self.sigma = sigma
-        self.channel = 3
+        self.channel = channel
+        self.register_buffer('window', self._create_window(window_size, channel))
+
+    def _create_window(self, window_size: int, channel: int) -> torch.Tensor:
+        """가우시안 윈도우 생성"""
+        import math
+        sigma = 1.5
+        gauss = torch.Tensor([
+            math.exp(-(x - window_size // 2) ** 2 / (2 * sigma ** 2))
+            for x in range(window_size)
+        ])
+        gauss = gauss / gauss.sum()
+        _1D_window = gauss.unsqueeze(1)
+        _2D_window = _1D_window.mm(_1D_window.t()).float().unsqueeze(0).unsqueeze(0)
+        window = _2D_window.expand(channel, 1, window_size, window_size).contiguous()
+        return window
+
+    def _ssim(self, img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
+        """SSIM 계산"""
+        C1 = 0.01 ** 2
+        C2 = 0.03 ** 2
+
+        # window를 입력과 같은 device/dtype으로 이동
+        window = self.window.to(img1.device).type(img1.dtype)
+
+        mu1 = nn.functional.conv2d(img1, window, padding=self.window_size // 2, groups=self.channel)
+        mu2 = nn.functional.conv2d(img2, window, padding=self.window_size // 2, groups=self.channel)
+
+        mu1_sq = mu1.pow(2)
+        mu2_sq = mu2.pow(2)
+        mu1_mu2 = mu1 * mu2
+
+        sigma1_sq = nn.functional.conv2d(img1 * img1, window, padding=self.window_size // 2, groups=self.channel) - mu1_sq
+        sigma2_sq = nn.functional.conv2d(img2 * img2, window, padding=self.window_size // 2, groups=self.channel) - mu2_sq
+        sigma12 = nn.functional.conv2d(img1 * img2, window, padding=self.window_size // 2, groups=self.channel) - mu1_mu2
+
+        ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
+        return ssim_map.mean()
 
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """SSIM Loss = 1 - SSIM"""
-        # 간단한 MSE로 대체 (SSIM은 복잡하므로)
-        return nn.functional.mse_loss(x, y)
+        return 1 - self._ssim(x, y)
+
+
+class CombinedLoss(nn.Module):
+    """MSE + SSIM 혼합 손실 함수"""
+
+    def __init__(self, mse_weight: float = 0.5, ssim_weight: float = 0.5, channel: int = 3):
+        super(CombinedLoss, self).__init__()
+        self.mse_weight = mse_weight
+        self.ssim_weight = ssim_weight
+        self.mse_loss = nn.MSELoss()
+        self.ssim_loss = SSIMLoss(channel=channel)
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        """Combined Loss = mse_weight * MSE + ssim_weight * SSIM"""
+        mse = self.mse_loss(x, y)
+        ssim = self.ssim_loss(x, y)
+        return self.mse_weight * mse + self.ssim_weight * ssim
 
 
 def create_model(config: dict) -> ConvAutoEncoder:

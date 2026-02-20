@@ -66,7 +66,15 @@ class CNNTester:
 
         # 모델 생성 및 가중치 로드
         self.model = create_model(self.config).to(self.device)
-        self.model.load_state_dict(checkpoint['model_state_dict'])
+
+        # 이전 체크포인트 호환성 처리 (01-20 이전: model.fc.weight → model.fc.1.weight)
+        state_dict = checkpoint['model_state_dict']
+        if 'model.fc.weight' in state_dict and 'model.fc.1.weight' not in state_dict:
+            print("⚠️ 구 형식 체크포인트 감지 → state_dict 키 변환 (model.fc → model.fc.1)")
+            state_dict['model.fc.1.weight'] = state_dict.pop('model.fc.weight')
+            state_dict['model.fc.1.bias'] = state_dict.pop('model.fc.bias')
+
+        self.model.load_state_dict(state_dict)
         self.model.eval()
 
         # Loss function (다중분류)
@@ -233,6 +241,7 @@ class CNNTester:
         print("-" * 60)
         report = classification_report(
             labels, preds,
+            labels=list(range(len(self.class_names))),
             target_names=self.class_names,
             zero_division=0
         )

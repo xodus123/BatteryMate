@@ -3,6 +3,12 @@
 모든 환경 변수와 하드코딩된 설정값들을 이 파일에서 관리합니다.
 실제 값은 .env 파일에 설정하고, 이 파일에서 로드합니다.
 
+현재 사용 모델:
+    - CT CNN: ResNet18/ConvNeXt/EfficientNet/CBAM/Late Fusion/DRN+ASPP 등 (5클래스)
+    - RGB AE: Autoencoder 기반 이상 탐지 (3클래스)
+    - VLM: Qwen3-VL (2B/8B), Gemini 2.0 Flash
+    - VLG: GroundingDINO (결함 위치 탐지)
+
 사용법:
     from config import settings
     api_key = settings.GEMINI_API_KEY
@@ -63,22 +69,19 @@ class Settings:
     GEMINI_API_KEY: Optional[str] = field(
         default_factory=lambda: os.getenv('GEMINI_API_KEY')
     )
-    OPENAI_API_KEY: Optional[str] = field(
-        default_factory=lambda: os.getenv('OPENAI_API_KEY')
-    )
 
     # ===== VLM 설정 =====
     VLM_MODEL_SIZE: str = field(
         default_factory=lambda: os.getenv('VLM_MODEL_SIZE', '2b')
     )
     VLM_DEFAULT_MODEL: str = field(
-        default_factory=lambda: os.getenv('VLM_DEFAULT_MODEL', 'qwen2vl')
+        default_factory=lambda: os.getenv('VLM_DEFAULT_MODEL', 'qwen3vl')
     )
     GEMINI_MODEL_NAME: str = field(
         default_factory=lambda: os.getenv('GEMINI_MODEL_NAME', 'gemini-2.0-flash')
     )
 
-    # ===== VLG 설정 =====
+    # ===== VLG 설정 (GroundingDINO) =====
     VLG_DEFAULT_MODEL: str = field(
         default_factory=lambda: os.getenv('VLG_DEFAULT_MODEL', 'groundingdino')
     )
@@ -89,20 +92,25 @@ class Settings:
         default_factory=lambda: float(os.getenv('VLG_TEXT_THRESHOLD', '0.25'))
     )
 
-    # ===== CNN 설정 =====
-    CNN_NUM_CLASSES: int = field(
-        default_factory=lambda: int(os.getenv('CNN_NUM_CLASSES', '5'))
+    # ===== CT CNN 설정 =====
+    CT_CNN_NUM_CLASSES: int = field(
+        default_factory=lambda: int(os.getenv('CT_CNN_NUM_CLASSES', '5'))
     )
-    CNN_IMAGE_SIZE: int = field(
-        default_factory=lambda: int(os.getenv('CNN_IMAGE_SIZE', '512'))
+    CT_CNN_IMAGE_SIZE: int = field(
+        default_factory=lambda: int(os.getenv('CT_CNN_IMAGE_SIZE', '512'))
+    )
+
+    # ===== RGB 설정 =====
+    RGB_NUM_CLASSES: int = field(
+        default_factory=lambda: int(os.getenv('RGB_NUM_CLASSES', '3'))
     )
 
     # ===== 체크포인트 경로 =====
-    CNN_CHECKPOINT_PATH: Optional[str] = field(
-        default_factory=lambda: os.getenv('CNN_CHECKPOINT_PATH')
+    CT_CNN_CHECKPOINT_PATH: Optional[str] = field(
+        default_factory=lambda: os.getenv('CT_CNN_CHECKPOINT_PATH')
     )
-    AE_CHECKPOINT_PATH: Optional[str] = field(
-        default_factory=lambda: os.getenv('AE_CHECKPOINT_PATH')
+    RGB_AE_CHECKPOINT_PATH: Optional[str] = field(
+        default_factory=lambda: os.getenv('RGB_AE_CHECKPOINT_PATH')
     )
 
     # ===== 웹앱 설정 =====
@@ -120,9 +128,8 @@ class Settings:
 
     def __post_init__(self):
         """초기화 후 검증"""
-        # API 키 경고
         if not self.GEMINI_API_KEY:
-            print("⚠️  GEMINI_API_KEY가 설정되지 않았습니다. Gemini API를 사용하려면 설정하세요.")
+            print("GEMINI_API_KEY가 설정되지 않았습니다. Gemini API를 사용하려면 .env에 설정하세요.")
 
     def validate_gemini_api(self) -> bool:
         """Gemini API 키 유효성 검증"""
@@ -131,13 +138,30 @@ class Settings:
     def get_checkpoint_path(self, model_type: str) -> Optional[Path]:
         """모델별 체크포인트 경로 반환"""
         paths = {
-            'cnn': self.CNN_CHECKPOINT_PATH,
-            'ae': self.AE_CHECKPOINT_PATH,
+            'ct_cnn': self.CT_CNN_CHECKPOINT_PATH,
+            'rgb_ae': self.RGB_AE_CHECKPOINT_PATH,
         }
         path = paths.get(model_type)
         if path:
             return Path(path)
         return None
+
+    # 하위 호환 속성 (webapp에서 기존 이름으로 접근 시)
+    @property
+    def CNN_CHECKPOINT_PATH(self) -> Optional[str]:
+        return self.CT_CNN_CHECKPOINT_PATH
+
+    @property
+    def AE_CHECKPOINT_PATH(self) -> Optional[str]:
+        return self.RGB_AE_CHECKPOINT_PATH
+
+    @property
+    def CNN_NUM_CLASSES(self) -> int:
+        return self.CT_CNN_NUM_CLASSES
+
+    @property
+    def CNN_IMAGE_SIZE(self) -> int:
+        return self.CT_CNN_IMAGE_SIZE
 
 
 # 싱글톤 인스턴스
@@ -154,5 +178,7 @@ if __name__ == "__main__":
     print(f"GEMINI_MODEL_NAME: {settings.GEMINI_MODEL_NAME}")
     print(f"VLG_DEFAULT_MODEL: {settings.VLG_DEFAULT_MODEL}")
     print(f"VLG_BOX_THRESHOLD: {settings.VLG_BOX_THRESHOLD}")
-    print(f"CNN_NUM_CLASSES: {settings.CNN_NUM_CLASSES}")
+    print(f"CT_CNN_NUM_CLASSES: {settings.CT_CNN_NUM_CLASSES}")
+    print(f"CT_CNN_IMAGE_SIZE: {settings.CT_CNN_IMAGE_SIZE}")
+    print(f"RGB_NUM_CLASSES: {settings.RGB_NUM_CLASSES}")
     print(f"WEBAPP_PORT: {settings.WEBAPP_PORT}")

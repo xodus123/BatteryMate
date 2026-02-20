@@ -19,7 +19,7 @@ import argparse
 from datetime import datetime
 import json
 
-from models.rgb_ae.model import create_model, ConvAutoEncoder
+from models.rgb_ae.model import create_model, ConvAutoEncoder, CombinedLoss, SSIMLoss
 from training.configs.config_loader import ConfigLoader
 from training.data.dataset import BatteryDataset
 from training.data.transforms import get_transforms, get_albumentations_transforms, build_transforms_from_config
@@ -47,6 +47,12 @@ class AETrainer:
             self.criterion = nn.MSELoss()
         elif loss_type == 'L1':
             self.criterion = nn.L1Loss()
+        elif loss_type == 'SSIM':
+            self.criterion = SSIMLoss(channel=3)
+        elif loss_type == 'MSE+SSIM':
+            mse_weight = config['criteria'].get('mse_weight', 0.5)
+            ssim_weight = config['criteria'].get('ssim_weight', 0.5)
+            self.criterion = CombinedLoss(mse_weight=mse_weight, ssim_weight=ssim_weight)
         else:
             self.criterion = nn.MSELoss()
 

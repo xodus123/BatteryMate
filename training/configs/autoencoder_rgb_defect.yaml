@@ -4,7 +4,7 @@
 # 방식: Reverse Anomaly Detection (역 이상 탐지)
 #
 # 데이터 분할:
-#   Train: 35,919개 (불량만 - pollution, mixed)
+#   Train: 35,919개 (불량만 - pollution, damaged)
 #   Val:   11,625개 (정상 + 불량)
 #   Test:  11,719개 (정상 + 불량)
 #
@@ -20,7 +20,7 @@ classes:
   names:
     - normal      # 정상 (Val/Test)
     - pollution   # 오염 (학습 대상)
-    - mixed       # 복합 결함 (학습 대상)
+    - damaged     # 파손 (학습 대상)
   num_classes: 3
 
 # ============================================================

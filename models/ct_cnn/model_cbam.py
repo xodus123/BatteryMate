@@ -71,7 +71,8 @@ class ResNet18CBAM(nn.Module):
         super(ResNet18CBAM, self).__init__()
 
         # ResNet18 로드
-        resnet = models.resnet18(pretrained=pretrained)
+        weights = models.ResNet18_Weights.IMAGENET1K_V1 if pretrained else None
+        resnet = models.resnet18(weights=weights)
 
         # ResNet18 구조 분해
         self.conv1 = resnet.conv1

@@ -1,0 +1,99 @@
+{
+  "model_type": "metadata_fusion",
+  "checkpoint": "models/ct_cnn/checkpoints/metadata_best_20260201_163846.pt",
+  "timestamp": "20260202_122228",
+  "num_classes": 5,
+  "class_names": [
+    "cell_normal",
+    "cell_porosity",
+    "module_normal",
+    "module_porosity",
+    "module_resin_overflow"
+  ],
+  "total_samples": 355256,
+  "class_counts": {
+    "cell_normal": 10731,
+    "cell_porosity": 30532,
+    "module_normal": 17892,
+    "module_porosity": 292836,
+    "module_resin_overflow": 3265
+  },
+  "metrics": {
+    "loss": 0.059289994331212584,
+    "accuracy": 0.9873668565766658,
+    "f1_macro": 0.9475009243166237,
+    "f1_weighted": 0.9872358104798998,
+    "precision_macro": 0.9476947488917167,
+    "recall_macro": 0.9482884971531241,
+    "roc_auc_ovr": 0.9966041736710631
+  },
+  "per_class_metrics": {
+    "cell_normal": {
+      "f1": 0.8389991708530459,
+      "precision": 0.880167826442898,
+      "recall": 0.801509644953872,
+      "support": 10731
+    },
+    "cell_porosity": {
+      "f1": 0.9457579523263884,
+      "precision": 0.932232509306099,
+      "recall": 0.9596816454867024,
+      "support": 30532
+    },
+    "module_normal": {
+      "f1": 0.9719290490136486,
+      "precision": 0.9610425090154081,
+      "recall": 0.9830650570087189,
+      "support": 17892
+    },
+    "module_porosity": {
+      "f1": 0.9979767877404273,
+      "precision": 0.9987686919404047,
+      "recall": 0.9971861383163272,
+      "support": 292836
+    },
+    "module_resin_overflow": {
+      "f1": 0.9828416616496086,
+      "precision": 0.9662622077537734,
+      "recall": 1.0,
+      "support": 3265
+    }
+  },
+  "confusion_matrix": [
+    [
+      8601,
+      2130,
+      0,
+      0,
+      0
+    ],
+    [
+      1171,
+      29301,
+      0,
+      60,
+      0
+    ],
+    [
+      0,
+      0,
+      17589,
+      300,
+      3
+    ],
+    [
+      0,
+      0,
+      713,
+      292012,
+      111
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      3265
+    ]
+  ]
+}

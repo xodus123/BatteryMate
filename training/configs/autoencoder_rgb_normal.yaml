@@ -19,7 +19,7 @@ classes:
   names:
     - normal      # 정상 (학습 대상)
     - pollution   # 오염 (Val/Test)
-    - mixed       # 복합 결함 (Val/Test)
+    - damaged     # 파손 (Val/Test)
   num_classes: 3
 
 # ============================================================

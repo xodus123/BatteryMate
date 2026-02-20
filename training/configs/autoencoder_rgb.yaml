@@ -11,7 +11,7 @@
 # 클래스:
 #   - 0: normal (정상)
 #   - 1: pollution (오염)
-#   - 2: mixed (복합 결함)
+#   - 2: damaged (파손)
 #
 # ** Train은 정상만 사용하여 정상 패턴 학습 **
 
@@ -22,7 +22,7 @@ classes:
   names:
     - normal
     - pollution
-    - mixed
+    - damaged
   num_classes: 3
 
 # ============================================================
@@ -51,18 +51,19 @@ model:
 # 데이터 설정
 # ============================================================
 data:
-  # Split 파일 경로 (전처리된 데이터 사용 시 preprocessed_*.txt)
-  train_split: training/data/splits/rgb/preprocessed_train.txt
-  val_split: training/data/splits/rgb/preprocessed_val.txt
-  test_split: training/data/splits/rgb/preprocessed_test.txt
+  # Split 파일 경로 (배터리 ID 단위 분리, 누수 없음)
+  # Train: 정상만 (Anomaly Detection)
+  train_split: training/data/splits/rgb/train.txt
+  val_split: training/data/splits/rgb/val.txt
+  test_split: training/data/splits/rgb/test.txt
 
   # 이미지 설정
-  image_size: 1024
-  batch_size: 16   # 1024 이미지에 맞게 조정
+  image_size: 512
+  batch_size: 32   # 512 이미지로 배치 증가
   num_workers: 8
 
   # 전처리 옵션
-  preprocessed: true          # 사전 전처리된 데이터 사용 (Resize 제외)
+  preprocessed: false         # 원본에서 실시간 리사이즈
   use_albumentations: true    # Albumentations 사용 (CLAHE, Sharpen 등)
 
   # 데이터 증강 (학습 시에만)
@@ -103,7 +104,9 @@ training:
 # ============================================================
 criteria:
   # 재구성 손실
-  reconstruction_loss: MSE  # MSE | L1 | SSIM
+  reconstruction_loss: MSE+SSIM  # MSE | L1 | SSIM | MSE+SSIM
+  mse_weight: 0.7   # MSE+SSIM 사용 시 MSE 가중치
+  ssim_weight: 0.3  # MSE+SSIM 사용 시 SSIM 가중치
 
   # 추가 손실 (선택)
   perceptual_loss:

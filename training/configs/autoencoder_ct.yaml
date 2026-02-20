@@ -1,0 +1,161 @@
+# CT AutoEncoder Config (내부 결함 탐지 - 앙상블 보조)
+#
+# 목적: 정상 CT 이미지로 학습 → 결함 이미지 입력 시 높은 재구성 오류
+# 방식: Anomaly Detection (이상 탐지)
+# 데이터: Battery outline crop (1024x1024)
+#
+# CNN+Metadata와 앙상블하여 사용
+#
+# 클래스:
+#   - 0: cell_normal
+#   - 1: cell_porosity
+#   - 2: module_normal
+#   - 3: module_porosity
+#   - 4: module_resin_overflow
+#
+# ** Train은 정상(0, 2)만 사용하여 정상 패턴 학습 **
+
+# ============================================================
+# 클래스 정의
+# ============================================================
+classes:
+  names:
+    - cell_normal
+    - cell_porosity
+    - module_normal
+    - module_porosity
+    - module_resin_overflow
+  num_classes: 5
+  normal_classes: [0, 2]  # 학습에 사용할 정상 클래스
+
+# ============================================================
+# 모델 설정
+# ============================================================
+model:
+  name: ConvAutoEncoder
+  in_channels: 3
+
+  encoder:
+    channels: [3, 64, 128, 256, 512]
+    kernel_size: 4
+    stride: 2
+    padding: 1
+
+  decoder:
+    channels: [512, 256, 128, 64, 3]
+    kernel_size: 4
+    stride: 2
+    padding: 1
+    output_padding: 1
+
+  latent_dim: 512
+  dropout: 0.2
+
+# ============================================================
+# 데이터 설정
+# ============================================================
+data:
+  # Split 파일 경로 (battery outline crop)
+  train_split: training/data/splits/ct/cropped/battery_train.txt
+  val_split: training/data/splits/ct/cropped/battery_val.txt
+  test_split: training/data/splits/ct/cropped/battery_test.txt
+
+  # 이미지 설정
+  image_size: 1024
+  batch_size: 8
+  num_workers: 4
+
+  # 전처리 옵션
+  preprocessed: true
+  use_albumentations: false
+
+  # 정상 이미지만 학습 (Anomaly Detection)
+  train_normal_only: true
+
+  # 데이터 증강
+  augmentation:
+    train:
+      - RandomHorizontalFlip:
+          p: 0.5
+      - RandomVerticalFlip:
+          p: 0.5
+      - RandomRotation:
+          degrees: 90
+    val: []
+
+# ============================================================
+# 학습 설정
+# ============================================================
+training:
+  optimizer: Adam
+  lr: 0.0005
+  weight_decay: 0.0001
+  epochs: 50
+  device: cuda
+
+  scheduler:
+    name: ReduceLROnPlateau
+    monitor: val_loss
+    factor: 0.5
+    patience: 5
+    min_lr: 1e-6
+
+  amp: true
+
+# ============================================================
+# 손실 함수 및 평가 기준
+# ============================================================
+criteria:
+  reconstruction_loss: MSE
+
+  perceptual_loss:
+    enabled: false
+    weight: 0.1
+
+  early_stopping:
+    enabled: true
+    monitor: val_loss
+    patience: 10
+    min_delta: 0.0001
+    mode: min
+
+# ============================================================
+# Threshold 설정 (이상 탐지용)
+# ============================================================
+threshold:
+  method: k_sigma
+  k: 2.5
+
+  auto_compute: true
+  save_path: models/ct_ae/checkpoints/threshold.json
+
+# ============================================================
+# 체크포인트 설정
+# ============================================================
+checkpoint:
+  save_dir: models/ct_ae/checkpoints
+  save_best_by: val_loss
+  save_last: true
+  save_top_k: 3
+
+# ============================================================
+# 로깅 설정
+# ============================================================
+logging:
+  tensorboard:
+    enabled: true
+    log_dir: models/ct_ae/logs
+    log_reconstruction: true
+    log_anomaly_heatmap: true
+
+  train_log:
+    enabled: true
+    save_path: models/ct_ae/logs/train_ct_ae.csv
+
+# ============================================================
+# 실험 메타데이터
+# ============================================================
+experiment:
+  name: ct_ae_anomaly
+  description: "CT AutoEncoder 내부 결함 탐지 (앙상블 보조)"
+  seed: 42

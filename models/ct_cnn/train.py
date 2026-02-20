@@ -66,9 +66,14 @@ class FocalLoss(nn.Module):
         """
         super().__init__()
         self.gamma = gamma
-        self.alpha = alpha
         self.label_smoothing = label_smoothing
         self.reduction = reduction
+
+        # alpha를 buffer로 등록 (자동 device/dtype 동기화)
+        if alpha is not None:
+            self.register_buffer('alpha', alpha)
+        else:
+            self.alpha = None
 
     def forward(self, inputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         """
@@ -101,6 +106,9 @@ class FocalLoss(nn.Module):
         else:
             # One-hot 없이 직접 추출
             p_t = p.gather(1, targets.unsqueeze(1)).squeeze(1)
+
+        # 수치 안정성을 위한 clamp (0 또는 1 근처에서 log/pow 안정화)
+        p_t = p_t.clamp(min=1e-6, max=1-1e-6)
 
         # Focal weight: (1 - p_t)^gamma
         focal_weight = (1 - p_t) ** self.gamma
@@ -173,6 +181,12 @@ class CTUnifiedTrainer:
         # Scheduler
         self.scheduler = self._create_scheduler(config)
 
+        # Warmup 설정
+        warmup_config = config['training'].get('warmup', {})
+        self.warmup_enabled = warmup_config.get('enabled', False)
+        self.warmup_epochs = warmup_config.get('epochs', 5)
+        self.base_lr = config['training']['lr']
+
         # Mixed Precision
         self.use_amp = config['training'].get('amp', False)
         self.scaler = GradScaler() if self.use_amp else None
@@ -235,8 +249,9 @@ class CTUnifiedTrainer:
         self.best_metric_value = float('-inf') if self.monitor_mode == 'max' else float('inf')
         self.patience_counter = 0
 
-        # Timestamp
+        # Timestamp & Experiment Name
         self.timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        self.experiment_name = config.get('experiment', {}).get('name', 'ct_unified')
 
         # Checkpoint 디렉토리
         self.checkpoint_dir = Path(config['checkpoint']['save_dir'])
@@ -326,6 +341,23 @@ class CTUnifiedTrainer:
                 patience=int(scheduler_config.get('patience', 5)),
                 min_lr=float(scheduler_config.get('min_lr', 1e-6)),
                 verbose=True
+            )
+        elif name == 'ExponentialLR':
+            return optim.lr_scheduler.ExponentialLR(
+                self.optimizer,
+                gamma=float(scheduler_config.get('gamma', 0.97))
+            )
+        elif name == 'StepLR':
+            return optim.lr_scheduler.StepLR(
+                self.optimizer,
+                step_size=int(scheduler_config.get('step_size', 3)),
+                gamma=float(scheduler_config.get('gamma', 0.97))
+            )
+        elif name == 'CosineAnnealingLR':
+            return optim.lr_scheduler.CosineAnnealingLR(
+                self.optimizer,
+                T_max=int(scheduler_config.get('T_max', 50)),
+                eta_min=float(scheduler_config.get('eta_min', 1e-6))
             )
         return None
 
@@ -441,7 +473,7 @@ class CTUnifiedTrainer:
                     label = labels[i].item()
 
                     # Grad-CAM 계산
-                    heatmap, pred = gradcam(img, target_class=None)
+                    heatmap, pred, _ = gradcam.generate(img, target_class=None)
 
                     # 이미지를 numpy로 변환 (denormalize)
                     img_np = img.squeeze().cpu().numpy()
@@ -591,7 +623,7 @@ class CTUnifiedTrainer:
 
         if is_best:
             # Top-K 체크포인트 관리
-            ckpt_path = self.checkpoint_dir / f'ct_unified_top{len(self.top_k_checkpoints)+1}_epoch{epoch}_{self.timestamp}.pt'
+            ckpt_path = self.checkpoint_dir / f'{self.experiment_name}_top{len(self.top_k_checkpoints)+1}_epoch{epoch}_{self.timestamp}.pt'
             torch.save(checkpoint, ckpt_path)
 
             # Top-K 리스트에 추가
@@ -611,14 +643,14 @@ class CTUnifiedTrainer:
                     print(f"  🗑️ Top-K 초과 체크포인트 삭제: {old_path.name}")
 
             # Best 심볼릭 링크 또는 복사
-            best_path = self.checkpoint_dir / f'ct_unified_best_{self.timestamp}.pt'
+            best_path = self.checkpoint_dir / f'{self.experiment_name}_best_{self.timestamp}.pt'
             if best_path.exists():
                 best_path.unlink()
             torch.save(checkpoint, best_path)
             print(f"  ✅ Best 모델 저장: {best_path.name} (Top-{min(len(self.top_k_checkpoints), self.save_top_k)} 유지)")
 
         if self.config['checkpoint'].get('save_last', True):
-            last_path = self.checkpoint_dir / f'ct_unified_last_{self.timestamp}.pt'
+            last_path = self.checkpoint_dir / f'{self.experiment_name}_last_{self.timestamp}.pt'
             torch.save(checkpoint, last_path)
 
     def train(self):
@@ -721,8 +753,14 @@ class CTUnifiedTrainer:
             # CSV 로깅
             self._log_to_csv(epoch, train_loss, val_loss, metrics['f1_macro'], metrics['accuracy'], current_lr)
 
-            # Scheduler 업데이트
-            if self.scheduler:
+            # Warmup & Scheduler 업데이트
+            if self.warmup_enabled and epoch <= self.warmup_epochs:
+                # Linear warmup: lr을 0에서 base_lr까지 선형 증가
+                warmup_lr = self.base_lr * (epoch / self.warmup_epochs)
+                for param_group in self.optimizer.param_groups:
+                    param_group['lr'] = warmup_lr
+                print(f"  [Warmup] LR: {warmup_lr:.6f}")
+            elif self.scheduler:
                 if isinstance(self.scheduler, optim.lr_scheduler.ReduceLROnPlateau):
                     # ReduceLROnPlateau는 모니터링 지표 사용
                     scheduler_metric = self._get_monitor_value(val_loss, metrics)

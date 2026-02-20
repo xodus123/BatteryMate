@@ -18,6 +18,7 @@ from tqdm import tqdm
 import argparse
 from datetime import datetime
 import json
+import math
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import roc_auc_score, roc_curve, precision_recall_curve, f1_score, accuracy_score, confusion_matrix, precision_score, recall_score
@@ -57,6 +58,9 @@ class AETester:
 
         # Threshold 로드
         self.threshold = checkpoint.get('threshold', None)
+        # NaN 체크 (체크포인트에 NaN이 저장된 경우 대비)
+        if self.threshold is not None and isinstance(self.threshold, float) and math.isnan(self.threshold):
+            self.threshold = None
         if self.threshold is None:
             # threshold.json에서 로드 시도
             threshold_path = Path(self.config['checkpoint']['save_dir']) / 'threshold.json'

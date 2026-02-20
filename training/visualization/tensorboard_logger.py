@@ -1,4 +1,5 @@
 """TensorBoard Logger - 다중분류 학습 시각화"""
+from typing import List
 from torch.utils.tensorboard import SummaryWriter
 from pathlib import Path
 from datetime import datetime
@@ -46,6 +47,7 @@ class TensorBoardLogger:
 
         for name, value in metrics.items():
             self.writer.add_scalar(name, value, epoch)
+        self.writer.flush()  # 즉시 디스크에 기록
 
     def log_confusion_matrix(self, epoch: int, cm: np.ndarray, class_names: list, tag: str = 'val'):
         """Confusion Matrix 이미지 로깅"""
@@ -461,6 +463,97 @@ class TensorBoardLogger:
         overlay = cv2.addWeighted(image, 1 - alpha, heatmap_colored, alpha, 0)
 
         return overlay
+
+    def log_misclassified_images(
+        self,
+        epoch: int,
+        images: List[np.ndarray],
+        labels: List[int],
+        preds: List[int],
+        probs: np.ndarray,
+        class_names: list,
+        num_samples: int = 8
+    ):
+        """
+        오분류 이미지 로깅
+
+        Args:
+            epoch: 에폭 번호
+            images: 이미지 리스트 [(H, W, C), ...] - 0~255 or 0~1
+            labels: 정답 라벨 리스트
+            preds: 예측 라벨 리스트
+            probs: 예측 확률 배열 (N, num_classes)
+            class_names: 클래스 이름 리스트
+            num_samples: 클래스당 로깅할 샘플 수
+        """
+        if self.writer is None:
+            return
+
+        try:
+            labels = np.array(labels)
+            preds = np.array(preds)
+
+            # 오분류 샘플 찾기
+            incorrect_mask = preds != labels
+            incorrect_indices = np.where(incorrect_mask)[0]
+
+            if len(incorrect_indices) == 0:
+                return
+
+            # 신뢰도가 높은 오분류 샘플 우선 (더 문제가 되는 케이스)
+            incorrect_probs = probs[incorrect_indices].max(axis=1)
+            sorted_indices = incorrect_indices[np.argsort(-incorrect_probs)]
+
+            # 클래스별로 오분류 샘플 수집
+            logged_per_class = {name: 0 for name in class_names}
+            logged_count = 0
+
+            for idx in sorted_indices:
+                if logged_count >= num_samples * len(class_names):
+                    break
+
+                true_label = labels[idx]
+                pred_label = preds[idx]
+                true_name = class_names[true_label]
+                pred_name = class_names[pred_label]
+                confidence = probs[idx][pred_label]
+
+                # 클래스당 최대 num_samples개
+                if logged_per_class[true_name] >= num_samples:
+                    continue
+
+                # 이미지 처리
+                img = images[idx]
+                if isinstance(img, np.ndarray):
+                    if img.max() <= 1.0:
+                        img = (img * 255).astype(np.uint8)
+                    else:
+                        img = img.astype(np.uint8)
+
+                    # CHW → HWC 변환 (필요시)
+                    if img.shape[0] == 3 and len(img.shape) == 3:
+                        img = np.transpose(img, (1, 2, 0))
+
+                    # 그레이스케일 → RGB
+                    if len(img.shape) == 2:
+                        img = np.stack([img] * 3, axis=-1)
+                    elif img.shape[-1] == 1:
+                        img = np.concatenate([img] * 3, axis=-1)
+
+                    self.writer.add_image(
+                        f'Misclassified/true_{true_name}/pred_{pred_name}_{logged_per_class[true_name]}',
+                        img,
+                        epoch,
+                        dataformats='HWC'
+                    )
+
+                    logged_per_class[true_name] += 1
+                    logged_count += 1
+
+            self.writer.flush()
+
+        except Exception as e:
+            print(f"⚠️ Misclassified 이미지 로깅 실패: {e}")
 
     def close(self):
         """TensorBoard writer 종료"""

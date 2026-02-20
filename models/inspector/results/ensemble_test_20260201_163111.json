@@ -1,0 +1,75 @@
+{
+  "timestamp": "2026-02-01T16:31:11.527686",
+  "num_samples": 0,
+  "ensemble": {
+    "accuracy": NaN,
+    "f1_macro": NaN,
+    "precision_macro": NaN,
+    "recall_macro": NaN,
+    "f1_per_class": {
+      "cell_normal": 0.0,
+      "cell_porosity": 0.0,
+      "module_normal": 0.0,
+      "module_porosity": 0.0,
+      "module_resin_overflow": 0.0
+    },
+    "confusion_matrix": [
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    ]
+  },
+  "cnn_only": {
+    "accuracy": NaN,
+    "f1_macro": NaN,
+    "f1_per_class": {
+      "cell_normal": 0.0,
+      "cell_porosity": 0.0,
+      "module_normal": 0.0,
+      "module_porosity": 0.0,
+      "module_resin_overflow": 0.0
+    }
+  },
+  "improvement": {
+    "f1_macro": NaN,
+    "accuracy": NaN
+  },
+  "agreements": {
+    "both_defect": 0,
+    "both_normal": 0,
+    "cnn_only_defect": 0,
+    "ae_only_anomaly": 0
+  }
+}

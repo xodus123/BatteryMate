@@ -1,0 +1,81 @@
+{
+  "threshold": 0.1858358085155487,
+  "normal_classes": [
+    0,
+    2
+  ],
+  "total_samples": 34220,
+  "normal_samples": 18617,
+  "defect_samples": 15603,
+  "score_stats": {
+    "normal_mean": 0.2075439691543579,
+    "normal_std": 0.08904165029525757,
+    "defect_mean": 0.2596983015537262,
+    "defect_std": 0.09567077457904816
+  },
+  "roc_auc": 0.6527002100388297,
+  "precision": 0.519165054139734,
+  "recall": 0.8081779145036211,
+  "f1": 0.6322069587887296,
+  "confusion_matrix_binary": [
+    [
+      6938,
+      11679
+    ],
+    [
+      2993,
+      12610
+    ]
+  ],
+  "true_negative": 6938,
+  "false_positive": 11679,
+  "false_negative": 2993,
+  "true_positive": 12610,
+  "class_stats": {
+    "cell_normal": {
+      "count": 8147,
+      "is_normal": true,
+      "score_mean": 0.14950868487358093,
+      "score_std": 0.08837851136922836,
+      "predicted_normal": 5500,
+      "predicted_defect": 2647,
+      "accuracy": 0.6750951270406285
+    },
+    "cell_porosity": {
+      "count": 4805,
+      "is_normal": false,
+      "score_mean": 0.1518101692199707,
+      "score_std": 0.06223893538117409,
+      "predicted_normal": 2986,
+      "predicted_defect": 1819,
+      "accuracy": 0.3785639958376691
+    },
+    "module_normal": {
+      "count": 10470,
+      "is_normal": true,
+      "score_mean": 0.25270286202430725,
+      "score_std": 0.05796407163143158,
+      "predicted_normal": 1438,
+      "predicted_defect": 9032,
+      "accuracy": 0.1373447946513849
+    },
+    "module_porosity": {
+      "count": 10467,
+      "is_normal": false,
+      "score_mean": 0.30982762575149536,
+      "score_std": 0.06319461762905121,
+      "predicted_normal": 6,
+      "predicted_defect": 10461,
+      "accuracy": 0.999426769848094
+    },
+    "module_resin_overflow": {
+      "count": 331,
+      "is_normal": false,
+      "score_mean": 0.24065981805324554,
+      "score_std": 0.011852569878101349,
+      "predicted_normal": 1,
+      "predicted_defect": 330,
+      "accuracy": 0.9969788519637462
+    }
+  }
+}

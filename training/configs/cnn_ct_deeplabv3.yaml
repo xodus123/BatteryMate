@@ -1,0 +1,136 @@
+# CT CNN DeepLabV3+ 사전학습 Config (5클래스 다중 분류)
+#
+# 원본 세그멘테이션 모델(DRN-D-54 + ASPP)의 사전학습 가중치를 활용하여
+# 배터리 CT 이미지 분류. backbone+ASPP를 freeze하고 classifier만 학습.
+#
+# 학습 전략 (2단계):
+#   1단계: freeze_backbone=true, lr=0.001 → classifier만 학습 (빠른 수렴)
+#   2단계: freeze_backbone=false, lr=0.00001 → 전체 fine-tuning (선택)
+
+# ============================================================
+# 클래스 정의
+# ============================================================
+classes:
+  names:
+    - cell_normal
+    - cell_porosity
+    - module_normal
+    - module_porosity
+    - module_resin_overflow
+  num_classes: 5
+  class_weights: [2.0, 0.8, 2.5, 0.5, 10.0]
+
+# ============================================================
+# 모델 설정
+# ============================================================
+model:
+  name: deeplabv3
+  num_classes: 5
+  dropout: 0.5
+  freeze_backbone: true  # 사전학습 backbone+ASPP 고정 (1단계)
+  pretrained_segmentation: models/ct_cnn/checkpoints/deeplabv3_drn_ct.pt
+
+# ============================================================
+# 데이터 설정
+# ============================================================
+data:
+  train_split: training/data/splits/ct/resize512/battery_train.txt
+  val_split: training/data/splits/ct/resize512/battery_val.txt
+  test_split: training/data/splits/ct/resize512/battery_test.txt
+
+  image_size: 512
+  batch_size: 8   # DRN-D-54 + ASPP 메모리 고려
+  num_workers: 4
+
+  preprocessed: true
+  use_albumentations: false
+
+  class_balancing:
+    enabled: true
+    method: weighted_sampler
+
+  # CT: 밝기=물질밀도 → 색상 증강 제외
+  augmentation:
+    train:
+      - RandomHorizontalFlip:
+          p: 0.5
+      - RandomVerticalFlip:
+          p: 0.5
+      - RandomRotation:
+          degrees: 30
+      - RandomAffine:
+          degrees: 0
+          translate: [0.1, 0.1]
+          scale: [0.9, 1.1]
+    val: []
+
+# ============================================================
+# 학습 설정
+# ============================================================
+training:
+  optimizer: AdamW
+  lr: 0.001           # backbone freeze 시 높은 lr 가능
+  weight_decay: 0.01
+  epochs: 50
+  device: cuda
+
+  scheduler:
+    name: CosineAnnealingWarmRestarts
+    T_0: 10
+    T_mult: 2
+    eta_min: 1e-6
+
+  gradient_clip: 1.0
+  amp: true
+
+# ============================================================
+# 손실 함수 및 평가 기준
+# ============================================================
+criteria:
+  loss: CrossEntropyLoss
+  use_class_weights: true
+  label_smoothing: 0.07
+
+  focal_loss:
+    enabled: true
+    gamma: 1.5
+    alpha: null
+
+  early_stopping:
+    enabled: true
+    monitor: val_f1_macro
+    patience: 8    # classifier만 학습 시 수렴 느릴 수 있음
+    min_delta: 0.001
+    mode: max
+
+# ============================================================
+# 체크포인트 설정
+# ============================================================
+checkpoint:
+  save_dir: models/ct_cnn/checkpoints
+  save_best_by: val_f1_macro
+  save_last: true
+  save_top_k: 3
+
+# ============================================================
+# 로깅 설정
+# ============================================================
+logging:
+  tensorboard:
+    enabled: true
+    log_dir: models/ct_cnn/logs
+    log_confusion_matrix: true
+    log_per_class_metrics: true
+    log_grad_cam: true
+
+  train_log:
+    enabled: true
+    save_path: models/ct_cnn/logs/train_deeplabv3.csv
+
+# ============================================================
+# 실험 메타데이터
+# ============================================================
+experiment:
+  name: deeplabv3
+  description: "DeepLabV3+ 사전학습 DRN-D-54 + ASPP, backbone freeze, classifier만 학습"
+  seed: 42
