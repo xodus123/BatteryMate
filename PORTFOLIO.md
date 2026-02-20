@@ -167,7 +167,7 @@
 
 #### 아키텍처 실험 요약
 
-총 **15종 이상의 모델 아키텍처**를 실험하여 최적 구성을 탐색했습니다.
+다양한 모델 아키텍처를 실험하여 최적 구성을 탐색했습니다.
 
 | 아키텍처 | Backbone | 특징 | 채택 |
 |----------|----------|------|------|
@@ -429,7 +429,7 @@ augmentation:
 
 #### ResNet18 Backbone 선택 이유
 
-15종 이상의 아키텍처 실험 결과, ResNet18 기반 모델이 일관되게 최고 성능을 달성했습니다.
+다양한 아키텍처 실험 결과, ResNet18 기반 모델이 일관되게 최고 성능을 달성했습니다.
 
 **1. 데이터셋 규모와 모델 복잡도의 균형**
 ```
@@ -467,7 +467,7 @@ augmentation:
 
 **5. 핵심 교훈**
 ```
-✅ 15종 아키텍처 실험 → ResNet18 기반 Late Fusion이 가장 안정적
+✅ 다양한 아키텍처 실험 → ResNet18 기반 Late Fusion이 가장 안정적
 ✅ 대형 모델(ConvNeXt, EfficientNet)은 과적합이 심각
 ✅ 메타데이터 결합이 복잡한 아키텍처보다 효과적
 ✅ 92개 배터리라는 데이터 한계에서 단순 모델이 유리
@@ -1334,7 +1334,7 @@ python models/rgb_ae/test.py --checkpoint models/rgb_ae/checkpoints/rgb_ae_best_
 ```
 battery-inspection/
 ├── models/
-│   ├── ct_cnn/                        # CT CNN (15종 아키텍처)
+│   ├── ct_cnn/                        # CT CNN (다중 아키텍처)
 │   │   ├── model.py                   # 모델 디스패치 (create_model)
 │   │   ├── model_late_fusion.py       # ★ Late Fusion v2 (최고 F1=0.803)
 │   │   ├── model_cbam.py             # CBAM 어텐션
@@ -1425,7 +1425,7 @@ battery-inspection/
 
 ### 1. 검출 성능 (Test 기준, 현재 split 35,529 샘플)
 
-**CT CNN (15종+ 아키텍처 실험)**:
+**CT CNN (다중 아키텍처 실험)**:
 | 모델 | Test F1 | Accuracy | ROC-AUC | 비고 |
 |------|---------|----------|---------|------|
 | **Late Fusion v2** | **0.803** | **80.3%** | **0.944** | ★ 최고 성능 |
@@ -1435,7 +1435,7 @@ battery-inspection/
 
 **RGB AutoEncoder**: **98.85% Accuracy**, **99.4% F1**, ROC-AUC 0.909
 
-### 2. 체계적 실험 (15종 아키텍처)
+### 2. 체계적 아키텍처 실험
 - ResNet18, ConvNeXt-Tiny, EfficientNet-B0/B4, CBAM, HD-CNN, DRN+ASPP, DeepLabV3+
 - Late Fusion, Metadata, Image-Only, Hierarchical 등
 - 전처리 전략: Raw Resize, Outline Crop, Patch, Resize 512/768

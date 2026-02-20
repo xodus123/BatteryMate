@@ -11,7 +11,7 @@
 
 - **멀티모달 분석**: CT 이미지(내부 결함) + RGB 이미지(외부 결함) 동시 분석
 - **3-Way 검사 시스템**: CNN + AutoEncoder + VLM/VLG 다중 모델 검증
-- **15종 아키텍처 실험**: ResNet18, ConvNeXt, EfficientNet, CBAM, Late Fusion, DRN+ASPP 등
+- **다양한 아키텍처 실험**: ResNet18, ConvNeXt, EfficientNet, CBAM, Late Fusion, DRN+ASPP 등
 - **설명 가능한 AI**: Grad-CAM, Error Map, Bounding Box 시각화
 - **실시간 웹 대시보드**: Streamlit 기반 즉시 결과 확인
 
@@ -108,7 +108,7 @@
 | ResNet18 (no_x) | 0.788 | 78.7% | 0.948 | 이미지만 |
 | CBAM (768, x축 포함) | 0.862 | 86.4% | 0.972 | x축 포함 학습 |
 
-> 15종 아키텍처 체계적 실험 수행. 35,529 테스트 샘플, 배터리 ID 기준 split (데이터 누수 방지)
+> 다양한 아키텍처 체계적 실험 수행. 35,529 테스트 샘플, 배터리 ID 기준 split (데이터 누수 방지)
 
 ### RGB AutoEncoder (외부 결함 탐지)
 
@@ -175,7 +175,7 @@ early_stopping: patience=7, monitor=val_f1_macro
 ```
 battery-inspection/
 ├── models/
-│   ├── ct_cnn/                    # CT CNN (15종 아키텍처)
+│   ├── ct_cnn/                    # CT CNN (다중 아키텍처)
 │   │   ├── model.py               # 모델 디스패치 (create_model)
 │   │   ├── model_late_fusion.py   # ★ Late Fusion (최고 F1=0.803)
 │   │   ├── model_cbam.py          # CBAM 어텐션
