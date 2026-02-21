@@ -17,9 +17,9 @@
 | Deep Learning | PyTorch, TorchVision, timm, Transformers |
 | CNN 모델 | ResNet18, ConvNeXt-Tiny, EfficientNet-B0/B4, DRN-D-54, CBAM |
 | AE 모델 | ConvAutoEncoder (RGB/CT) |
-| VLM 모델 | Qwen3-VL (2B/4B/8B/32B), Gemini 2.0 Flash |
+| VLM 모델 | Qwen3-VL (2B/4B/8B/32B), Gemini 2.5 Pro |
 | VLG 모델 | GroundingDINO (Swin-T), YOLO-World (YOLOv8s) |
-| 외부 API | Google Gemini 2.0 Flash |
+| 외부 API | Google Gemini 2.5 Pro |
 | 시각화 | Grad-CAM, TensorBoard, Matplotlib |
 | 웹 프레임워크 | Streamlit |
 | 언어 | Python 3.10 |
@@ -54,7 +54,7 @@
 
 | 모델 | 크기 | 실행 환경 | 속도 | zero-shot 분류 | 상태 |
 |------|------|-----------|------|----------------|------|
-| **Gemini 2.0 Flash** | - | Google API (클라우드) | ~5초 | 미평가 | **★ 권장** (자연어 분석용) |
+| **Gemini 2.5 Pro** | - | Google API (클라우드) | ~5초 | 미평가 | **★ 권장** (자연어 분석 + Grounding) |
 | Qwen3-VL | 32B | 로컬 GPU (고사양) | ~300초+ | 미평가 | 대규모 평가 필요 |
 | Qwen3-VL | 8B | 로컬 GPU | ~150초 | 미평가 | GPU 12GB 제약 |
 | Qwen3-VL | 4B | 로컬 GPU | ~50초 | 미평가 | - |
@@ -95,8 +95,8 @@
 └──────────────────────────────────────────────────┘
                     VS (비교)
 ┌──────────────────────────────────────────────────┐
-│  System 2: VLM (Gemini / Qwen3-VL)              │
-│  → Zero-shot 판정 + 불량 원인 설명              │
+│  System 2: VLM (Gemini 2.5 Pro / Qwen3-VL)      │
+│  → Zero-shot 판정 + 불량 원인 설명 + 위치 Grounding │
 └──────────────────────────────────────────────────┘
                     VS
 ┌──────────────────────────────────────────────────┐
@@ -759,16 +759,50 @@ confidence = (ct_confidence + rgb_confidence) / 2
 
 ### 4. VLM (Vision-Language Model)
 
+#### 모델 선정 기준
+
+VLM의 역할은 **결함 위치 시각화(Grounding)** 및 **자연어 기반 소견 생성**이며, 로컬 모델과 API 모델을 이원화하여 운용합니다.
+
+| 선정 기준 | 중요도 | 설명 |
+|----------|--------|------|
+| **결함 위치 출력 (Grounding)** | ★★★ | 바운딩 박스 좌표를 네이티브로 출력 가능 여부. 검사 시스템에서 불량 위치 시각화 필수 |
+| **Zero-shot 검출 성능** | ★★★ | 배터리 도메인 학습 없이 즉시 사용 가능한 성능. RF100-VL 벤치마크 기준 |
+| **한국어 지원** | ★★☆ | 프롬프트 및 소견 출력이 한국어로 가능한지 |
+| **비용 효율성** | ★★☆ | 이미지당 API 호출 비용. 대량 검사 시 운용 비용 |
+| **로컬 실행 가능 여부** | ★★☆ | 데이터 보안 및 오프라인 환경 대응 |
+
+#### 후보 모델 비교
+
+| 모델 | 바운딩 박스 | Zero-shot mAP (RF100-VL) | 한국어 | 이미지당 비용 | 로컬 실행 |
+|------|-----------|--------------------------|--------|-------------|----------|
+| **Gemini 2.5 Pro** | O (네이티브) | **13.3 (VLM 1위)** | 우수 | ~$0.01 | X (API 전용) |
+| Gemini 2.5 Flash | O (네이티브) | 양호 | 우수 | ~$0.002 | X (API 전용) |
+| **Qwen3-VL** | O (절대 픽셀 좌표) | 7.5~9.2 | 최우수 (CJK 특화) | 무료 (로컬) | **O (3B~72B)** |
+| GPT-4o | X (부정확) | - | 우수 | ~$0.02 | X |
+| Claude Sonnet | X (비일관적) | - | 우수 | ~$0.03 | X |
+
+#### 선정 결과
+
+| 역할 | 선정 모델 | 선정 사유 |
+|------|----------|----------|
+| **API 모델** | **Gemini 2.5 Pro** | VLM 중 zero-shot 객체 검출 성능 최고(mAP 13.3), 바운딩 박스 네이티브 지원, 합리적 비용 |
+| **로컬 모델** | **Qwen3-VL (8B)** | 오픈소스 로컬 GPU 실행, 바운딩 박스 네이티브 지원, 한국어 CJK 최우수, 데이터 외부 유출 없음 |
+
+**탈락 모델:**
+- **GPT-4o**: 바운딩 박스 좌표 출력 부정확, 환각(hallucination) 발생 빈번
+- **Claude Sonnet/Opus**: 시각적 grounding 능력 부족, 좌표 출력 비일관적
+- **Gemini 2.5 Flash**: Pro 대비 검출 정밀도 낮음 (비용 최적화 필요 시 대안)
+
 #### 모델
-본 시스템은 세 가지 VLM을 지원하며, 웹앱에서 선택 가능합니다.
 
 | 모델 | 실행 환경 | 속도 | zero-shot 분류 | 비고 |
 |------|-----------|------|----------------|------|
 | **Qwen3-VL-8B** | 로컬 GPU | ~150초 | 미평가 | GPU 12GB 제약 |
 | **Qwen3-VL-2B** | 로컬 GPU | ~2초/장 | ❌ CT/RGB 모두 부적합 | 자연어 해석 용도로 활용 |
-| **Gemini 2.0 Flash** | Google API | ~5초 | 미평가 | **★ 권장** (자연어 분석) |
+| **Gemini 2.5 Pro** | Google API | ~5초 | 미평가 | **★ 권장** (자연어 분석 + Grounding) |
 
-> **참고**: Qwen3-VL 2B zero-shot 분류 평가 결과, CT 5클래스(500샘플) 및 RGB 3클래스 모두 분류 부적합 확정. VLM은 정량적 분류 대신 **자연어 기반 결함 해석 및 소견서 생성** 용도로 활용합니다.
+> **참고**: Qwen3-VL 2B zero-shot 분류 평가 결과, CT 5클래스(500샘플) 및 RGB 3클래스 모두 분류 부적합 확정. VLM은 정량적 분류 대신 **자연어 기반 결함 해석/소견서 생성 및 결함 위치 Grounding** 용도로 활용합니다.
+> 최고 성능 VLM도 산업 결함 검출에서 mAP ~13 수준이므로, VLM은 **1차 스크리닝** 용도로 활용하고 정밀 판정은 CNN 모델이 담당합니다.
 
 #### 프롬프트 설계
 ```
@@ -1033,9 +1067,9 @@ streamlit run webapp/app.py --server.port 8501
 
 | 용도 | VLM 모델 | VLG 모델 | 비고 |
 |------|----------|----------|------|
-| **실무 배포** | Gemini 2.0 Flash | GroundingDINO | 최고 정확도 |
-| **오프라인 환경** | Qwen3-VL-2B | GroundingDINO | API 불가 시 |
-| **속도 우선** | Gemini 2.0 Flash | GroundingDINO | 총 ~8초 |
+| **실무 배포** | Gemini 2.5 Pro | GroundingDINO | 최고 정확도 |
+| **오프라인 환경** | Qwen3-VL-8B | GroundingDINO | API 불가 시 |
+| **속도 우선** | Gemini 2.5 Pro | GroundingDINO | 총 ~8초 |
 | **비교 테스트** | 선택 가능 | 선택 가능 | 웹앱 설정 |
 
 #### 웹앱 설정 방법
@@ -1047,7 +1081,7 @@ streamlit run webapp/app.py --server.port 8501
 # 홈페이지 → ⚙️ 고급 설정 열기
 # VLM 모델 선택:
 #   - 🧠 Qwen3-VL (로컬) - GPU 실행, 오프라인 가능
-#   - ☁️ Gemini 2.0 Flash (API) - 빠르고 정확, 권장
+#   - ☁️ Gemini 2.5 Pro (API) - 빠르고 정확, Grounding 지원, 권장
 # VLG 모델 선택:
 #   - 🎯 GroundingDINO (Swin-T) - 정확도 높음, 권장
 #   - 🚀 YOLO-World (YOLOv8s) - 비교 테스트용
@@ -1057,7 +1091,7 @@ streamlit run webapp/app.py --server.port 8501
 
 | 항목 | 결론 |
 |------|------|
-| 최적 VLM | **Gemini 2.0 Flash** (정확도 + 속도 모두 우수) |
+| 최적 VLM | **Gemini 2.5 Pro** (정확도 + 속도 + Grounding 모두 우수) |
 | 최적 VLG | **GroundingDINO** (유일하게 결함 탐지 성공) |
 | 최적 조합 | **Gemini + GroundingDINO** (3개 모델 모두 정확) |
 | 통합 검사기 역할 | 최종 판정 기준 (VLM/VLG 오판 시 보정) |
@@ -1075,7 +1109,7 @@ streamlit run webapp/app.py --server.port 8501
 | 분석 모델 | 인지 패러다임 | 핵심 역할 (Core Value) | CT 데이터 최적화 전략 |
 |-----------|-------------|----------------------|---------------------|
 | **CNN + AE (논리 결합)** | 통계적 인지 | 수치적 이상 탐지 | 픽셀 분포의 편차를 계산하여 미세 기공/공극의 존재 여부를 확률로 산출 |
-| **VLM (Gemini)** | 추론적 인지 | 문맥적 원인 분석 | 이미지 전체의 구조적 관계를 파악하여 결함의 발생 원인(제조 공정 등)을 추론 |
+| **VLM (Gemini 2.5 Pro)** | 추론적 인지 | 문맥적 원인 분석 | 이미지 전체의 구조적 관계를 파악하여 결함의 발생 원인(제조 공정 등)을 추론 |
 | **VLG (DINO)** | 언어적 인지 | 지시적 위치 특정 | 자연어 프롬프트(예: "void")를 시각적 좌표와 매칭하여 논리적 근거(BBox) 제시 |
 
 ```
@@ -1101,7 +1135,7 @@ streamlit run webapp/app.py --server.port 8501
 
 ### 모델별 역할 및 특성
 
-| 구분 | 통합 검사 (CNN+AE) | VLM (Gemini/Qwen3-VL) | VLG (GroundingDINO) |
+| 구분 | 통합 검사 (CNN+AE) | VLM (Gemini 2.5 Pro / Qwen3-VL) | VLG (GroundingDINO) |
 |------|-------------------|----------------------|---------------------|
 | **인지 패러다임** | 통계적 인지 | 추론적 인지 | 언어적 인지 |
 | **결합 방식** | 논리 기반 (AND/OR) | 독립 추론 | 독립 탐지 |
@@ -1134,7 +1168,7 @@ streamlit run webapp/app.py --server.port 8501
 
 ---
 
-#### 🤖 VLM (Qwen3-VL / Gemini)
+#### 🤖 VLM (Gemini 2.5 Pro / Qwen3-VL)
 
 **강점:**
 ```
@@ -1143,33 +1177,18 @@ streamlit run webapp/app.py --server.port 8501
 ✅ 결함의 특성, 심각도, 위치 설명
 ✅ 사람이 이해하기 쉬운 리포트
 ✅ 새로운 결함 유형에도 대응 가능
+✅ 바운딩 박스 네이티브 지원 (Gemini 2.5 Pro, Qwen3-VL)
 ```
 
 **약점:**
 ```
-❌ 바운딩 박스 위치 정확도 낮음
 ❌ 할루시네이션 (없는 결함을 있다고 할 수 있음)
-❌ 추론 속도 느림 (~20초)
+❌ 추론 속도 느림 (~20초, 로컬 모델 기준)
 ❌ 정량적 신뢰도 산출 어려움
+❌ 산업 결함 검출 zero-shot mAP ~13 수준 (정밀도 한계)
 ```
 
-**VLM 위치 탐지 한계 상세:**
-```
-문제: VLM이 "중앙 상단에 기공이 있습니다"라고 답변해도
-      실제 위치와 다른 경우가 빈번함
-
-원인:
-1. VLM은 언어 모델 기반 → 공간 좌표 개념 약함
-2. "상단", "중앙" 등 모호한 표현 사용
-3. 이미지 해상도 축소로 세밀한 위치 정보 손실
-4. Grounding 학습이 부족한 일반 VLM 한계
-
-해결책:
-→ 위치 정보는 VLG(GroundingDINO)에 위임
-→ VLM은 결함 설명과 소견서 생성에 집중
-```
-
-**적합한 용도:** AI 소견서 생성, 검사 리포트 작성, 설명 가능한 AI
+**적합한 용도:** AI 소견서 생성, 검사 리포트 작성, 결함 위치 Grounding, 설명 가능한 AI
 
 ---
 

@@ -78,7 +78,7 @@ class Settings:
         default_factory=lambda: os.getenv('VLM_DEFAULT_MODEL', 'qwen3vl')
     )
     GEMINI_MODEL_NAME: str = field(
-        default_factory=lambda: os.getenv('GEMINI_MODEL_NAME', 'gemini-2.0-flash')
+        default_factory=lambda: os.getenv('GEMINI_MODEL_NAME', 'gemini-2.5-pro')
     )
 
     # ===== VLG 설정 (GroundingDINO) =====

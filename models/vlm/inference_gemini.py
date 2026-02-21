@@ -45,7 +45,7 @@ class GeminiVLMInference:
         elif settings:
             self.model_name = settings.GEMINI_MODEL_NAME
         else:
-            self.model_name = "gemini-2.0-flash"
+            self.model_name = "gemini-2.5-pro"
 
         genai.configure(api_key=self.api_key)
         self.model = genai.GenerativeModel(self.model_name)
