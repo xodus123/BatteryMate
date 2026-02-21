@@ -273,7 +273,6 @@ MIT License
 ## 참고 문서
 
 - [PORTFOLIO.md](PORTFOLIO.md) - 상세 포트폴리오 (모델 아키텍처, 실험 결과, 분석)
-- [docs/MODEL_PERFORMANCE.md](docs/MODEL_PERFORMANCE.md) - 전체 모델 성능 비교표
 
 ---
 
