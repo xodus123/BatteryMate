@@ -36,7 +36,7 @@
 └──────────────────────────────────────────────────┘
                     VS (비교)
 ┌──────────────────────────────────────────────────┐
-│  System 2: VLM (Gemini / Qwen3-VL)               │
+│  System 2: VLM (Gemini 2.5 Pro / Qwen3-VL)        │
 │  → 자연어 기반 결함 해석 + 위치 설명 + 소견서 생성  │
 └──────────────────────────────────────────────────┘
                     VS
@@ -61,7 +61,7 @@
 | 분석 모델 | 인지 패러다임 | 핵심 역할 (Core Value) | CT 데이터 최적화 전략 |
 |-----------|-------------|----------------------|---------------------|
 | **CNN + AE (논리 결합)** | 통계적 인지 | 수치적 이상 탐지 | 픽셀 분포의 편차를 계산하여 미세 기공/공극의 존재 여부를 확률로 산출 |
-| **VLM (Gemini)** | 추론적 인지 | 문맥적 원인 분석 | 이미지 전체의 구조적 관계를 파악하여 결함의 발생 원인(제조 공정 등)을 추론 |
+| **VLM (Gemini 2.5 Pro)** | 추론적 인지 | 문맥적 원인 분석 | 이미지 전체의 구조적 관계를 파악하여 결함의 발생 원인(제조 공정 등)을 추론 |
 | **VLG (DINO)** | 언어적 인지 | 지시적 위치 특정 | 자연어 프롬프트(예: "void")를 시각적 좌표와 매칭하여 논리적 근거(BBox) 제시 |
 
 ```
@@ -85,7 +85,7 @@
 
 ### 모델별 역할 및 특성
 
-| 구분 | 통합 검사 (CNN+AE) | VLM (Gemini/Qwen3-VL) | VLG (GroundingDINO) |
+| 구분 | 통합 검사 (CNN+AE) | VLM (Gemini 2.5 Pro / Qwen3-VL) | VLG (GroundingDINO) |
 |------|-------------------|----------------------|---------------------|
 | **인지 패러다임** | 통계적 인지 | 추론적 인지 | 언어적 인지 |
 | **결합 방식** | 논리 기반 (AND/OR) | 독립 추론 | 독립 탐지 |
@@ -118,14 +118,15 @@
 
 > 배터리 ID 분리 후 신버전 split 기준. Threshold 기반 Accuracy/F1은 재평가 필요.
 
-### VLM (자연어 분석)
+### VLM (자연어 분석 + 결함 위치 Grounding)
 
-| 모델 | 용도 | 비고 |
-|------|------|------|
-| **Gemini 2.0 Flash** | 결함 해석, 소견서 생성 | ★ 권장 (API) |
-| Qwen3-VL (2B/8B) | 오프라인 결함 해석 | 로컬 GPU |
+| 역할 | 모델 | 선정 사유 |
+|------|------|----------|
+| **API 모델** | **Gemini 2.5 Pro** | VLM 중 zero-shot 검출 성능 최고 (RF100-VL mAP 13.3), 바운딩 박스 네이티브 지원 |
+| **로컬 모델** | **Qwen3-VL (8B)** | 오픈소스 로컬 실행, 절대 픽셀 좌표 출력, CJK 한국어 최우수, 데이터 외부 유출 없음 |
 
-> zero-shot 정량 분류에는 부적합. 자연어 기반 결함 해석/소견서 생성 용도로 활용.
+> **모델 선정 기준**: 결함 위치 출력(Grounding) 지원 여부를 최우선으로 평가. GPT-4o(좌표 부정확), Claude(grounding 비일관적)는 위치 특정 불가로 탈락.
+> zero-shot 정량 분류에는 부적합. 자연어 기반 결함 해석/소견서 생성 및 결함 위치 시각화 용도로 활용.
 
 ### VLG (결함 위치 탐지)
 
@@ -166,7 +167,7 @@ early_stopping: patience=7, monitor=val_f1_macro
 |------|------|
 | Deep Learning | PyTorch, TorchVision, Transformers |
 | 모델 | ResNet18, ConvNeXt, EfficientNet, CBAM, DRN+ASPP, ConvAutoEncoder |
-| VLM/VLG | Qwen3-VL, Gemini 2.0 Flash, GroundingDINO |
+| VLM/VLG | Qwen3-VL, Gemini 2.5 Pro, GroundingDINO |
 | 시각화 | Grad-CAM, TensorBoard |
 | 웹 프레임워크 | Streamlit |
 
@@ -278,4 +279,4 @@ MIT License
 
 *Developed with PyTorch, Streamlit, and Google Gemini API*
 
-*Last Updated: 2026-02-20*
+*Last Updated: 2026-02-21*
